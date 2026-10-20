@@ -8,7 +8,7 @@
 
 /**
  * Synchronous HTTP lookup (v2.api.iphub.info). Fills @p out except id.
- * Needs IphubApiKey in cfg.
+ * Needs `iphub_api_key` in cfg.
  */
 authum_bool_t
 gatekeeper_iphub_lookup(const authum_char_t *ip, gatekeeper_iphub_data_t *out);

@@ -97,7 +97,7 @@ gatekeeper_sql_open(void)
         {
             authum_logger_error(&g_gatekeeper_logger,
                                 "sql open FAILED (mysql): %s — need libmariadb/libmysqlclient on "
-                                "host, check SqlHost/User/Pass/Db/Port",
+                                "host, check sql_host/user/pass/db/port",
                                 authum_sql_errmsg(&g_db));
             return authum_bool_false;
         }
