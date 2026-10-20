@@ -7,7 +7,7 @@
 #include <gatekeeper/iphub/data.h>
 
 /** true = allow connection. */
-authum_bool_t gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data,
-				      const authum_char_t *auth_id);
+authum_bool_t
+gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id);
 
 #endif /* GATEKEEPER_FILTER_H */

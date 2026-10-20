@@ -7,44 +7,47 @@
 #include <authum/logger/file/split.h>
 #include <authum/logger/sink.h>
 
-enum gatekeeper_sql_driver {
-	gatekeeper_sql_driver_sqlite = 0,
-	gatekeeper_sql_driver_mysql = 1
+enum gatekeeper_sql_driver
+{
+    gatekeeper_sql_driver_sqlite = 0,
+    gatekeeper_sql_driver_mysql = 1
 };
 typedef enum gatekeeper_sql_driver gatekeeper_sql_driver_t;
 
 struct gatekeeper_config
 {
-	gatekeeper_sql_driver_t sql_driver;
-	/* sqlite: path under module dir (default gatekeeper.sqlite) */
-	authum_char_t sql_path[256];
-	/* mysql (future / when linked): */
-	authum_char_t sql_host[128];
-	authum_char_t sql_user[64];
-	authum_char_t sql_pass[64];
-	authum_char_t sql_db[64];
-	authum_char_t sql_table_ip[32];
-	authum_char_t sql_table_client[32];
+    gatekeeper_sql_driver_t sql_driver;
+    /* sqlite: path under module dir (default gatekeeper.sqlite) */
+    authum_char_t sql_path[256];
+    /* mysql (future / when linked): */
+    authum_char_t sql_host[128];
+    authum_char_t sql_user[64];
+    authum_char_t sql_pass[64];
+    authum_char_t sql_db[64];
+    authum_char_t sql_table_ip[32];
+    authum_char_t sql_table_client[32];
 
-	authum_char_t iphub_api_key[128];
-	authum_i32_t iphub_timeout_ms;
-	authum_bool_t iphub_enabled;
+    authum_char_t iphub_api_key[128];
+    authum_i32_t iphub_timeout_ms;
+    authum_bool_t iphub_enabled;
 
-	authum_bool_t filter_enabled;
-	authum_bool_t filter_debug;
-	authum_i32_t filter_block_max; /* kick when iphub block > this (AMXX: < cvar was inverted naming) */
-	authum_bool_t filter_allow_countries; /* true = list is allow-list */
-	authum_char_t filter_countries[512];
-	authum_char_t filter_kick_reason[128];
-	authum_char_t filter_whitelist[64]; /* leaf under module dir */
+    authum_bool_t filter_enabled;
+    authum_bool_t filter_debug;
+    authum_i32_t
+        filter_block_max; /* kick when iphub block > this (AMXX: < cvar was inverted naming) */
+    authum_bool_t filter_allow_countries; /* true = list is allow-list */
+    authum_char_t filter_countries[512];
+    authum_char_t filter_kick_reason[128];
+    authum_char_t filter_whitelist[64]; /* leaf under module dir */
 
-	authum_logger_sink_t logging_sinks;
-	authum_logger_file_split_t logging_split;
+    authum_logger_sink_t logging_sinks;
+    authum_logger_file_split_t logging_split;
 };
 typedef struct gatekeeper_config gatekeeper_config_t;
 
 extern gatekeeper_config_t g_gatekeeper_config;
 
-void gatekeeper_config_load(void);
+void
+gatekeeper_config_load(void);
 
 #endif /* GATEKEEPER_CONFIG_H */
