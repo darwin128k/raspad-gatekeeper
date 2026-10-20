@@ -27,6 +27,7 @@ struct gatekeeper_config
     authum_i32_t sql_port; /* 0 → 3306 */
     authum_char_t sql_table_ip[32];
     authum_char_t sql_table_client[32];
+    authum_char_t sql_table_session[32]; /* steamid↔ASN history */
 
     authum_char_t iphub_api_key[128];
     authum_i32_t iphub_timeout_ms;
@@ -40,6 +41,13 @@ struct gatekeeper_config
     authum_char_t filter_countries[512];
     authum_char_t filter_kick_reason[128];
     authum_char_t filter_whitelist[64]; /* leaf under module dir */
+
+    /* Stolen / shared Steam ticket: learn ASN(+country) per steamid. */
+    authum_bool_t steam_guard_enabled;
+    authum_bool_t steam_guard_enforce; /* 0 = log only; 1 = reject */
+    authum_bool_t steam_guard_strict_country; /* new country never seen → deny when enforce */
+    authum_i32_t steam_guard_max_asn; /* distinct ASNs allowed before deny */
+    authum_char_t steam_guard_kick_reason[128];
 
     authum_logger_sink_t logging_sinks;
     authum_logger_file_split_t logging_split;

@@ -5,8 +5,8 @@ Authum module: IP / ASN / country filtering and client identity for classic HLDS
 Heritage: AMXX plugins (`gatekeeper.core`, `gatekeeper.filter`, `gatekeeper.clients`,
 `gatesql`) — IPHub lookup, SQL cache, whitelist, country/block kick, SteamID↔IP binding.
 
-**Status:** Authum ABI 0.3 — SQLite IP cache, IPHub lookup, country/block filter,
-client steamid table. MySQL driver reserved. Steam-ticket antifraud later.
+**Status:** Authum ABI 0.3 — SQLite/MySQL IP cache, IPHub lookup, country/block
+filter, client steamid table, **steam_guard** (steamid↔ASN session antifraud).
 
 ## Build
 

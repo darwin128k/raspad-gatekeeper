@@ -17,6 +17,7 @@ gatekeeper_config_t g_gatekeeper_config = {
     .sql_port = 3306,
     .sql_table_ip = "user",
     .sql_table_client = "client",
+    .sql_table_session = "session",
 
     .iphub_api_key = "",
     .iphub_timeout_ms = 3000,
@@ -29,6 +30,12 @@ gatekeeper_config_t g_gatekeeper_config = {
     .filter_countries = "RU BY UA KZ KG MD UZ LV LT EE GE RO AM BG AZ TM TJ",
     .filter_kick_reason = "Access denied",
     .filter_whitelist = "whitelist.ini",
+
+    .steam_guard_enabled = authum_bool_true,
+    .steam_guard_enforce = authum_bool_false,
+    .steam_guard_strict_country = authum_bool_false,
+    .steam_guard_max_asn = 3,
+    .steam_guard_kick_reason = "Steam session mismatch",
 
     .logging_sinks = authum_logger_sink_host | authum_logger_sink_file,
     .logging_split = authum_logger_file_split_full,
@@ -49,6 +56,8 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
      sizeof g_gatekeeper_config.sql_table_ip},
     {"sql_table_client", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_client,
      sizeof g_gatekeeper_config.sql_table_client},
+    {"sql_table_session", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_session,
+     sizeof g_gatekeeper_config.sql_table_session},
     {"iphub_api_key", authum_cfg_kind_cstr, g_gatekeeper_config.iphub_api_key,
      sizeof g_gatekeeper_config.iphub_api_key},
     {"iphub_timeout_ms", authum_cfg_kind_i32, &g_gatekeeper_config.iphub_timeout_ms, 0},
@@ -63,6 +72,13 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
      sizeof g_gatekeeper_config.filter_kick_reason},
     {"filter_whitelist", authum_cfg_kind_cstr, g_gatekeeper_config.filter_whitelist,
      sizeof g_gatekeeper_config.filter_whitelist},
+    {"steam_guard_enabled", authum_cfg_kind_bool, &g_gatekeeper_config.steam_guard_enabled, 0},
+    {"steam_guard_enforce", authum_cfg_kind_bool, &g_gatekeeper_config.steam_guard_enforce, 0},
+    {"steam_guard_strict_country", authum_cfg_kind_bool,
+     &g_gatekeeper_config.steam_guard_strict_country, 0},
+    {"steam_guard_max_asn", authum_cfg_kind_i32, &g_gatekeeper_config.steam_guard_max_asn, 0},
+    {"steam_guard_kick_reason", authum_cfg_kind_cstr, g_gatekeeper_config.steam_guard_kick_reason,
+     sizeof g_gatekeeper_config.steam_guard_kick_reason},
     {"logging_mode", authum_cfg_kind_u32, &g_gatekeeper_config.logging_sinks, 0},
 };
 
@@ -111,9 +127,14 @@ gatekeeper_config_load(void)
     gatekeeper_config_apply_file("gatekeeper.cfg");
     /* Secrets / overrides — gitignored locally, optional on the server. */
     gatekeeper_config_apply_file("gatekeeper.local.cfg");
-    authum_logger_info(
-        &g_gatekeeper_logger, "cfg sql_driver=%s sql_table_ip=%s filter_enabled=%d iphub_api_key=%s",
-        g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql ? "mysql" : "sqlite",
-        g_gatekeeper_config.sql_table_ip, (int)g_gatekeeper_config.filter_enabled,
-        g_gatekeeper_config.iphub_api_key[0] ? "set" : "empty");
+    authum_logger_info(&g_gatekeeper_logger,
+                       "cfg sql_driver=%s filter=%d steam_guard=%d enforce=%d max_asn=%d "
+                       "iphub_api_key=%s",
+                       g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql ? "mysql"
+                                                                                    : "sqlite",
+                       (int)g_gatekeeper_config.filter_enabled,
+                       (int)g_gatekeeper_config.steam_guard_enabled,
+                       (int)g_gatekeeper_config.steam_guard_enforce,
+                       (int)g_gatekeeper_config.steam_guard_max_asn,
+                       g_gatekeeper_config.iphub_api_key[0] ? "set" : "empty");
 }
