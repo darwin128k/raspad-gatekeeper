@@ -35,35 +35,35 @@ gatekeeper_config_t g_gatekeeper_config = {
 };
 
 static const authum_cfg_item_t g_gatekeeper_config_items[] = {
-    {"SqlPath", authum_cfg_kind_cstr, g_gatekeeper_config.sql_path,
+    {"sql_path", authum_cfg_kind_cstr, g_gatekeeper_config.sql_path,
      sizeof g_gatekeeper_config.sql_path},
-    {"SqlHost", authum_cfg_kind_cstr, g_gatekeeper_config.sql_host,
+    {"sql_host", authum_cfg_kind_cstr, g_gatekeeper_config.sql_host,
      sizeof g_gatekeeper_config.sql_host},
-    {"SqlUser", authum_cfg_kind_cstr, g_gatekeeper_config.sql_user,
+    {"sql_user", authum_cfg_kind_cstr, g_gatekeeper_config.sql_user,
      sizeof g_gatekeeper_config.sql_user},
-    {"SqlPass", authum_cfg_kind_cstr, g_gatekeeper_config.sql_pass,
+    {"sql_pass", authum_cfg_kind_cstr, g_gatekeeper_config.sql_pass,
      sizeof g_gatekeeper_config.sql_pass},
-    {"SqlDb", authum_cfg_kind_cstr, g_gatekeeper_config.sql_db, sizeof g_gatekeeper_config.sql_db},
-    {"SqlPort", authum_cfg_kind_i32, &g_gatekeeper_config.sql_port, 0},
-    {"SqlTableIp", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_ip,
+    {"sql_db", authum_cfg_kind_cstr, g_gatekeeper_config.sql_db, sizeof g_gatekeeper_config.sql_db},
+    {"sql_port", authum_cfg_kind_i32, &g_gatekeeper_config.sql_port, 0},
+    {"sql_table_ip", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_ip,
      sizeof g_gatekeeper_config.sql_table_ip},
-    {"SqlTableClient", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_client,
+    {"sql_table_client", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_client,
      sizeof g_gatekeeper_config.sql_table_client},
-    {"IphubApiKey", authum_cfg_kind_cstr, g_gatekeeper_config.iphub_api_key,
+    {"iphub_api_key", authum_cfg_kind_cstr, g_gatekeeper_config.iphub_api_key,
      sizeof g_gatekeeper_config.iphub_api_key},
-    {"IphubTimeoutMs", authum_cfg_kind_i32, &g_gatekeeper_config.iphub_timeout_ms, 0},
-    {"IphubEnabled", authum_cfg_kind_bool, &g_gatekeeper_config.iphub_enabled, 0},
-    {"FilterEnabled", authum_cfg_kind_bool, &g_gatekeeper_config.filter_enabled, 0},
-    {"FilterDebug", authum_cfg_kind_bool, &g_gatekeeper_config.filter_debug, 0},
-    {"FilterBlockMax", authum_cfg_kind_i32, &g_gatekeeper_config.filter_block_max, 0},
-    {"FilterAllowCountries", authum_cfg_kind_bool, &g_gatekeeper_config.filter_allow_countries, 0},
-    {"FilterCountries", authum_cfg_kind_cstr, g_gatekeeper_config.filter_countries,
+    {"iphub_timeout_ms", authum_cfg_kind_i32, &g_gatekeeper_config.iphub_timeout_ms, 0},
+    {"iphub_enabled", authum_cfg_kind_bool, &g_gatekeeper_config.iphub_enabled, 0},
+    {"filter_enabled", authum_cfg_kind_bool, &g_gatekeeper_config.filter_enabled, 0},
+    {"filter_debug", authum_cfg_kind_bool, &g_gatekeeper_config.filter_debug, 0},
+    {"filter_block_max", authum_cfg_kind_i32, &g_gatekeeper_config.filter_block_max, 0},
+    {"filter_allow_countries", authum_cfg_kind_bool, &g_gatekeeper_config.filter_allow_countries, 0},
+    {"filter_countries", authum_cfg_kind_cstr, g_gatekeeper_config.filter_countries,
      sizeof g_gatekeeper_config.filter_countries},
-    {"FilterKickReason", authum_cfg_kind_cstr, g_gatekeeper_config.filter_kick_reason,
+    {"filter_kick_reason", authum_cfg_kind_cstr, g_gatekeeper_config.filter_kick_reason,
      sizeof g_gatekeeper_config.filter_kick_reason},
-    {"FilterWhitelist", authum_cfg_kind_cstr, g_gatekeeper_config.filter_whitelist,
+    {"filter_whitelist", authum_cfg_kind_cstr, g_gatekeeper_config.filter_whitelist,
      sizeof g_gatekeeper_config.filter_whitelist},
-    {"LoggingMode", authum_cfg_kind_u32, &g_gatekeeper_config.logging_sinks, 0},
+    {"logging_mode", authum_cfg_kind_u32, &g_gatekeeper_config.logging_sinks, 0},
 };
 
 static void
@@ -84,7 +84,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
         &cfg, g_gatekeeper_config_items,
         (authum_usize_t)(sizeof g_gatekeeper_config_items / sizeof g_gatekeeper_config_items[0]));
 
-    if (authum_cfg_apply_cstr(&cfg, "SqlDriver", driver, sizeof driver))
+    if (authum_cfg_apply_cstr(&cfg, "sql_driver", driver, sizeof driver))
     {
         if (authum_cstr_eq(driver, "mysql", authum_bool_true))
         {
@@ -96,7 +96,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
         }
     }
 
-    if (authum_cfg_apply_cstr(&cfg, "LoggingSplit", split, sizeof split))
+    if (authum_cfg_apply_cstr(&cfg, "logging_split", split, sizeof split))
     {
         g_gatekeeper_config.logging_split = authum_logger_file_split_parse(split);
     }
@@ -112,7 +112,7 @@ gatekeeper_config_load(void)
     /* Secrets / overrides — gitignored locally, optional on the server. */
     gatekeeper_config_apply_file("gatekeeper.local.cfg");
     authum_logger_info(
-        &g_gatekeeper_logger, "cfg SqlDriver=%s SqlTableIp=%s FilterEnabled=%d IphubKey=%s",
+        &g_gatekeeper_logger, "cfg sql_driver=%s sql_table_ip=%s filter_enabled=%d iphub_api_key=%s",
         g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql ? "mysql" : "sqlite",
         g_gatekeeper_config.sql_table_ip, (int)g_gatekeeper_config.filter_enabled,
         g_gatekeeper_config.iphub_api_key[0] ? "set" : "empty");
