@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 project(gatekeeper C)
 
 # Authum client module (ABI 0.3), pure C11.
-# SQLite amalgamation in third_party/; IPHub via plain HTTP sockets (no curl).
+# SQL via Authum (`<authum/sql.h>`); IPHub via plain HTTP sockets.
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -15,16 +15,6 @@ if (NOT EXISTS "${AUTHUM_DIR}/client/CMakeLists.txt")
 endif ()
 
 add_subdirectory(lib/authum/client)
-
-add_library(gatekeeper_sqlite STATIC third_party/sqlite/sqlite3.c)
-target_include_directories(gatekeeper_sqlite PUBLIC "${CMAKE_SOURCE_DIR}/third_party/sqlite")
-set_target_properties(gatekeeper_sqlite PROPERTIES POSITION_INDEPENDENT_CODE ON)
-if (NOT MSVC)
-	target_compile_options(gatekeeper_sqlite PRIVATE -m32 -fvisibility=hidden)
-	# amalgamation is huge — hush noise
-	target_compile_options(gatekeeper_sqlite PRIVATE -Wno-unused-parameter -Wno-sign-compare)
-endif ()
-target_compile_definitions(gatekeeper_sqlite PRIVATE SQLITE_OMIT_LOAD_EXTENSION SQLITE_THREADSAFE=1)
 
 add_library(gatekeeper MODULE
 	src/authum/info.c
@@ -67,7 +57,7 @@ if (NOT MSVC)
 	)
 endif ()
 
-target_link_libraries(gatekeeper PRIVATE authum_client gatekeeper_sqlite pthread dl m)
+target_link_libraries(gatekeeper PRIVATE authum_client pthread dl m)
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
 	if (CMAKE_STRIP)
