@@ -14,6 +14,7 @@ gatekeeper_config_t g_gatekeeper_config = {
     .sql_user = "root",
     .sql_pass = "",
     .sql_db = "gatekeeper",
+    .sql_port = 3306,
     .sql_table_ip = "user",
     .sql_table_client = "client",
 
@@ -43,6 +44,7 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
     {"SqlPass", authum_cfg_kind_cstr, g_gatekeeper_config.sql_pass,
      sizeof g_gatekeeper_config.sql_pass},
     {"SqlDb", authum_cfg_kind_cstr, g_gatekeeper_config.sql_db, sizeof g_gatekeeper_config.sql_db},
+    {"SqlPort", authum_cfg_kind_i32, &g_gatekeeper_config.sql_port, 0},
     {"SqlTableIp", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_ip,
      sizeof g_gatekeeper_config.sql_table_ip},
     {"SqlTableClient", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_client,

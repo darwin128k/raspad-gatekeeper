@@ -16,32 +16,64 @@ static authum_sql_t g_db;
 static authum_bool_t
 gatekeeper_sql_ensure_schema(void)
 {
-    authum_char_t sql[512];
+    authum_char_t sql[640];
 
-    snprintf(sql, sizeof sql,
-             "CREATE TABLE IF NOT EXISTS `%s` ("
-             "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-             "`asn` INTEGER NOT NULL,"
-             "`ip` TEXT NOT NULL UNIQUE,"
-             "`code` TEXT,"
-             "`name` TEXT,"
-             "`isp` TEXT,"
-             "`block` INTEGER NOT NULL"
-             ");",
-             g_gatekeeper_config.sql_table_ip);
+    if (g_db.driver == authum_sql_driver_mysql)
+    {
+        snprintf(sql, sizeof sql,
+                 "CREATE TABLE IF NOT EXISTS `%s` ("
+                 "`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+                 "`asn` INT NOT NULL,"
+                 "`ip` VARCHAR(45) NOT NULL,"
+                 "`code` VARCHAR(8),"
+                 "`name` VARCHAR(128),"
+                 "`isp` VARCHAR(256),"
+                 "`block` INT NOT NULL,"
+                 "UNIQUE KEY `uk_ip` (`ip`)"
+                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+                 g_gatekeeper_config.sql_table_ip);
+    }
+    else
+    {
+        snprintf(sql, sizeof sql,
+                 "CREATE TABLE IF NOT EXISTS `%s` ("
+                 "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+                 "`asn` INTEGER NOT NULL,"
+                 "`ip` TEXT NOT NULL UNIQUE,"
+                 "`code` TEXT,"
+                 "`name` TEXT,"
+                 "`isp` TEXT,"
+                 "`block` INTEGER NOT NULL"
+                 ");",
+                 g_gatekeeper_config.sql_table_ip);
+    }
     if (!authum_sql_exec(&g_db, sql))
     {
         authum_logger_error(&g_gatekeeper_logger, "sql schema ip: %s", authum_sql_errmsg(&g_db));
         return authum_bool_false;
     }
 
-    snprintf(sql, sizeof sql,
-             "CREATE TABLE IF NOT EXISTS `%s` ("
-             "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
-             "`logid` INTEGER NOT NULL,"
-             "`steamid` TEXT NOT NULL UNIQUE"
-             ");",
-             g_gatekeeper_config.sql_table_client);
+    if (g_db.driver == authum_sql_driver_mysql)
+    {
+        snprintf(sql, sizeof sql,
+                 "CREATE TABLE IF NOT EXISTS `%s` ("
+                 "`id` INT NOT NULL AUTO_INCREMENT PRIMARY KEY,"
+                 "`logid` INT NOT NULL,"
+                 "`steamid` VARCHAR(64) NOT NULL,"
+                 "UNIQUE KEY `uk_steamid` (`steamid`)"
+                 ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;",
+                 g_gatekeeper_config.sql_table_client);
+    }
+    else
+    {
+        snprintf(sql, sizeof sql,
+                 "CREATE TABLE IF NOT EXISTS `%s` ("
+                 "`id` INTEGER PRIMARY KEY AUTOINCREMENT,"
+                 "`logid` INTEGER NOT NULL,"
+                 "`steamid` TEXT NOT NULL UNIQUE"
+                 ");",
+                 g_gatekeeper_config.sql_table_client);
+    }
     if (!authum_sql_exec(&g_db, sql))
     {
         authum_logger_error(&g_gatekeeper_logger, "sql schema client: %s",
@@ -54,33 +86,48 @@ gatekeeper_sql_ensure_schema(void)
 authum_bool_t
 gatekeeper_sql_open(void)
 {
-    authum_path_t path;
+    authum_sql_init(&g_db);
 
     if (g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql)
     {
-        authum_logger_error(&g_gatekeeper_logger,
-                            "SqlDriver=mysql not in Authum yet — use sqlite (SqlPath)");
-        return authum_bool_false;
+        if (!authum_sql_open_mysql(&g_db, g_gatekeeper_config.sql_host,
+                                   g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_pass,
+                                   g_gatekeeper_config.sql_db,
+                                   (authum_u32_t)g_gatekeeper_config.sql_port))
+        {
+            authum_logger_error(&g_gatekeeper_logger,
+                                "sql open FAILED (mysql): %s — need libmariadb/libmysqlclient on "
+                                "host, check SqlHost/User/Pass/Db/Port",
+                                authum_sql_errmsg(&g_db));
+            return authum_bool_false;
+        }
+        authum_logger_info(&g_gatekeeper_logger, "sql open (authum mysql): %s@%s:%d/%s",
+                           g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_host,
+                           (int)g_gatekeeper_config.sql_port, g_gatekeeper_config.sql_db);
+        return gatekeeper_sql_ensure_schema();
     }
 
-    if (!authum_path_join(&path, authum_host_env_module(&g_gatekeeper_host),
-                          g_gatekeeper_config.sql_path))
     {
-        authum_logger_error(&g_gatekeeper_logger, "sql: bad path");
-        return authum_bool_false;
-    }
+        authum_path_t path;
 
-    authum_sql_init(&g_db);
-    if (!authum_sql_open_sqlite(&g_db, authum_path_as_cstr(&path)))
-    {
-        authum_logger_error(&g_gatekeeper_logger, "sql open FAILED: %s (%s)",
-                            authum_sql_errmsg(&g_db), authum_path_as_cstr(&path));
-        return authum_bool_false;
-    }
+        if (!authum_path_join(&path, authum_host_env_module(&g_gatekeeper_host),
+                              g_gatekeeper_config.sql_path))
+        {
+            authum_logger_error(&g_gatekeeper_logger, "sql: bad path");
+            return authum_bool_false;
+        }
 
-    authum_logger_info(&g_gatekeeper_logger, "sql open (authum sqlite): %s",
-                       authum_path_as_cstr(&path));
-    return gatekeeper_sql_ensure_schema();
+        if (!authum_sql_open_sqlite(&g_db, authum_path_as_cstr(&path)))
+        {
+            authum_logger_error(&g_gatekeeper_logger, "sql open FAILED: %s (%s)",
+                                authum_sql_errmsg(&g_db), authum_path_as_cstr(&path));
+            return authum_bool_false;
+        }
+
+        authum_logger_info(&g_gatekeeper_logger, "sql open (authum sqlite): %s",
+                           authum_path_as_cstr(&path));
+        return gatekeeper_sql_ensure_schema();
+    }
 }
 
 void
