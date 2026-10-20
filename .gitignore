@@ -1,0 +1,16 @@
+/build/
+/build-*/
+*.o
+*.a
+*.so
+*.dll
+.vscode/
+.idea/
+*.user
+CMakeCache.txt
+CMakeFiles/
+compile_commands.json
+gatekeeper.local.cfg
+*.sqlite
+*.sqlite-journal
+third_party/sqlite/sqlite-amalgamation-*/
