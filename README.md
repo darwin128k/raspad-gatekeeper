@@ -10,7 +10,7 @@ client steamid table. MySQL driver reserved. Steam-ticket antifraud later.
 
 ## Build
 
-SQLite is vendored (`third_party/sqlite`). IPHub uses plain HTTP sockets (no curl).
+SQL via Authum (`<authum/sql.h>`, SQLite inside Authum). IPHub uses plain HTTP sockets.
 
 ```bash
 git submodule update --init --recursive

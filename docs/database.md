@@ -1,34 +1,20 @@
 # Database
 
-Gatekeeper owns its own SQL — not Authum.
+Gatekeeper owns **schema and queries**. The SQL **engine** is Authum’s brick
+[`<authum/sql.h>`](../lib/authum/docs/sql.md) (vendored SQLite inside Authum —
+modules do not ship `third_party/sqlite`).
 
-## Drivers
+## Drivers (`gatekeeper.cfg` → Authum)
 
 | `SqlDriver` | Status |
 |-------------|--------|
-| `sqlite` | **Default.** File under module dir (`SqlPath`, default `gatekeeper.sqlite`). |
-| `mysql` | Reserved in cfg (`SqlHost` / `SqlUser` / …). Not linked yet — same schema later. |
+| `sqlite` | Default. File under module dir (`SqlPath`). |
+| `mysql` | Reserved in Authum enum — not linked yet. |
 
 ## Tables (AMXX-compatible names)
 
-**`SqlTableIp` (default `user`)**
+**`SqlTableIp` (default `user`)** — asn, ip, code, name, isp, block  
 
-| Column | Meaning |
-|--------|---------|
-| id | row id |
-| asn | ASN |
-| ip | unique |
-| code | country code |
-| name | country name |
-| isp | ISP |
-| block | IPHub block level |
+**`SqlTableClient` (default `client`)** — logid, steamid  
 
-**`SqlTableClient` (default `client`)**
-
-| Column | Meaning |
-|--------|---------|
-| id | row id |
-| logid | FK → ip row id |
-| steamid | unique auth id |
-
-Resolve path: lookup IP → on miss IPHub → INSERT → optional client row on auth id.
+Resolve: lookup IP → miss → IPHub → INSERT → optional client row on auth id.
