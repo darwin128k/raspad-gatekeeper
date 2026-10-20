@@ -26,6 +26,7 @@ add_library(gatekeeper MODULE
 	src/gatekeeper/iphub/data.c
 	src/gatekeeper/client/state.c
 	src/gatekeeper/filter.c
+	src/gatekeeper/steam/guard.c
 	src/gatekeeper/resolve.c
 )
 

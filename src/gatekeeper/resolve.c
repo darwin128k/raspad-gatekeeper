@@ -7,6 +7,7 @@
 #include <gatekeeper/host.h>
 #include <gatekeeper/iphub.h>
 #include <gatekeeper/sql.h>
+#include <gatekeeper/steam/guard.h>
 
 #include <authum/cstr.h>
 #include <authum/event/client.h>
@@ -164,6 +165,13 @@ gatekeeper_on_client_connect(const authum_char_t *name, authum_ptr payload, auth
                          g_gatekeeper_config.filter_kick_reason);
         return authum_event_result_handled;
     }
+    if (!gatekeeper_steam_guard_allow(ev->auth_id, &slot->iphub))
+    {
+        ev->allow = authum_bool_false;
+        authum_cstr_copy(ev->reject_reason, sizeof ev->reject_reason,
+                         g_gatekeeper_config.steam_guard_kick_reason);
+        return authum_event_result_handled;
+    }
     return authum_event_result_continue;
 }
 
@@ -192,6 +200,12 @@ gatekeeper_on_client_put_in_server(const authum_char_t *name, authum_ptr payload
     if (slot->iphub.id >= 0 && !gatekeeper_filter_allow(&slot->iphub, ev->auth_id))
     {
         authum_host_kick(&g_gatekeeper_host, ev->userid, g_gatekeeper_config.filter_kick_reason);
+        return authum_event_result_handled;
+    }
+    if (slot->iphub.id >= 0 && !gatekeeper_steam_guard_allow(ev->auth_id, &slot->iphub))
+    {
+        authum_host_kick(&g_gatekeeper_host, ev->userid,
+                         g_gatekeeper_config.steam_guard_kick_reason);
         return authum_event_result_handled;
     }
     return authum_event_result_continue;

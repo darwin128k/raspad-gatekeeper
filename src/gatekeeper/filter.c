@@ -68,8 +68,8 @@ gatekeeper_filter_read_flags(const authum_char_t *s)
     return flags;
 }
 
-static authum_bool_t
-gatekeeper_filter_whitelist_hit(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
+authum_bool_t
+gatekeeper_filter_whitelisted(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
 {
     authum_path_t path;
     FILE *fp;
@@ -144,7 +144,7 @@ gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t
         return authum_bool_true;
     }
 
-    if (gatekeeper_filter_whitelist_hit(data, auth_id))
+    if (gatekeeper_filter_whitelisted(data, auth_id))
     {
         if (g_gatekeeper_config.filter_debug)
         {

@@ -24,4 +24,7 @@ Source: Desktop `raspad/Pawn/*.sma`. Core path ported (SQLite + IPHub + filter +
 - SQL + HTTP IPHub as bricks; kick via `authum_host_kick`.
 - Whitelist file under module dir.
 
-Stolen Steam tickets are **out of scope** for the IPHub filter; that is a separate Steam-session policy (mentioned on the forums as future work in this product line).
+Stolen / shared Steam tickets are **in scope** via `steam_guard_*`: table
+`session` stores steamid↔ASN(+country); over `steam_guard_max_asn` or a new
+country (`steam_guard_strict_country`) is logged, and rejected when
+`steam_guard_enforce=1`. Whitelist still bypasses.

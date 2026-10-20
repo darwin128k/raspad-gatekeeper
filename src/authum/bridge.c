@@ -61,7 +61,7 @@ gatekeeper_authum_start(authum_host_t *host)
         return authum_bool_false;
     }
 
-    authum_logger_info(&g_gatekeeper_logger, "ready (sqlite + iphub + filter)");
+    authum_logger_info(&g_gatekeeper_logger, "ready (sql + iphub + filter + steam_guard)");
     return authum_bool_true;
 }
 
