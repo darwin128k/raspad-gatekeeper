@@ -4,68 +4,17 @@
 #include <gatekeeper/host.h>
 
 #include <authum/cstr.h>
+#include <authum/json.h>
 #include <authum/null.h>
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-
-static authum_bool_t
-gatekeeper_iphub_json_string(const authum_char_t *json, const authum_char_t *key, authum_char_t *out,
-			     authum_usize_t out_size)
-{
-	authum_char_t needle[64];
-	const authum_char_t *p;
-	const authum_char_t *end;
-	authum_usize_t n;
-
-	if (authum_null_eq(json) || authum_null_eq(key) || authum_null_eq(out) || out_size == 0u)
-		return authum_bool_false;
-	snprintf(needle, sizeof needle, "\"%s\":\"", key);
-	p = strstr(json, needle);
-	if (authum_null_eq(p)) {
-		snprintf(needle, sizeof needle, "\"%s\": \"", key);
-		p = strstr(json, needle);
-	}
-	if (authum_null_eq(p)) {
-		out[0] = '\0';
-		return authum_bool_false;
-	}
-	p += strlen(needle);
-	end = strchr(p, '"');
-	if (authum_null_eq(end)) {
-		out[0] = '\0';
-		return authum_bool_false;
-	}
-	n = (authum_usize_t)(end - p);
-	if (n >= out_size)
-		n = out_size - 1u;
-	memcpy(out, p, n);
-	out[n] = '\0';
-	return authum_bool_true;
-}
-
-static authum_i32_t
-gatekeeper_iphub_json_int(const authum_char_t *json, const authum_char_t *key, authum_i32_t fallback)
-{
-	authum_char_t needle[64];
-	const authum_char_t *p;
-
-	snprintf(needle, sizeof needle, "\"%s\":", key);
-	p = strstr(json, needle);
-	if (authum_null_eq(p))
-		return fallback;
-	p += strlen(needle);
-	while (*p == ' ')
-		++p;
-	return (authum_i32_t)atoi(p);
-}
 
 authum_bool_t
 gatekeeper_iphub_lookup(const authum_char_t *ip, gatekeeper_iphub_data_t *out)
@@ -146,11 +95,11 @@ gatekeeper_iphub_lookup(const authum_char_t *ip, gatekeeper_iphub_data_t *out)
 	}
 	body += 4;
 
-	gatekeeper_iphub_json_string(body, "countryCode", out->code, sizeof out->code);
-	gatekeeper_iphub_json_string(body, "countryName", out->name, sizeof out->name);
-	gatekeeper_iphub_json_string(body, "isp", out->isp, sizeof out->isp);
-	out->asn = gatekeeper_iphub_json_int(body, "asn", -1);
-	out->block = gatekeeper_iphub_json_int(body, "block", 0);
+	authum_json_object_get_cstr(body, "countryCode", out->code, sizeof out->code);
+	authum_json_object_get_cstr(body, "countryName", out->name, sizeof out->name);
+	authum_json_object_get_cstr(body, "isp", out->isp, sizeof out->isp);
+	out->asn = authum_json_object_get_i32_or(body, "asn", -1);
+	out->block = authum_json_object_get_i32_or(body, "block", 0);
 
 	authum_logger_info(&g_gatekeeper_logger, "iphub ok ip=%s code=%s asn=%d block=%d isp=%s",
 			   out->ip, out->code, (int)out->asn, (int)out->block, out->isp);
