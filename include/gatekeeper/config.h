@@ -19,11 +19,12 @@ struct gatekeeper_config
     gatekeeper_sql_driver_t sql_driver;
     /* sqlite: path under module dir (default gatekeeper.sqlite) */
     authum_char_t sql_path[256];
-    /* mysql (future / when linked): */
+    /* mysql (Authum dlopen of host libmariadb / libmysqlclient): */
     authum_char_t sql_host[128];
     authum_char_t sql_user[64];
     authum_char_t sql_pass[64];
     authum_char_t sql_db[64];
+    authum_i32_t sql_port; /* 0 → 3306 */
     authum_char_t sql_table_ip[32];
     authum_char_t sql_table_client[32];
 
