@@ -1,8 +1,7 @@
 # Database
 
 Gatekeeper owns **schema and queries**. The SQL **engine** is Authum’s brick
-[`<authum/sql.h>`](../lib/authum/docs/sql.md) (vendored SQLite inside Authum —
-modules do not ship `third_party/sqlite`).
+[`<authum/sql.h>`](../lib/authum/docs/sql.md) (SQLite under Authum `lib/sqlite`).
 
 ## Drivers (`gatekeeper.cfg` → Authum)
 
