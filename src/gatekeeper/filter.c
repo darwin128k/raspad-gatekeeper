@@ -132,16 +132,16 @@ gatekeeper_filter_whitelisted(const gatekeeper_iphub_data_t *data, const authum_
     return authum_bool_false;
 }
 
-authum_bool_t
-gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
+gatekeeper_filter_result_t
+gatekeeper_filter_check(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
 {
     if (!g_gatekeeper_config.filter_enabled)
     {
-        return authum_bool_true;
+        return gatekeeper_filter_result_allow;
     }
     if (authum_null_eq(data))
     {
-        return authum_bool_true;
+        return gatekeeper_filter_result_allow;
     }
 
     if (gatekeeper_filter_whitelisted(data, auth_id))
@@ -151,7 +151,7 @@ gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t
             authum_logger_info(&g_gatekeeper_logger, "filter allow whitelist ip=%s asn=%d",
                                data->ip, (int)data->asn);
         }
-        return authum_bool_true;
+        return gatekeeper_filter_result_allow;
     }
 
     if (gatekeeper_filter_country_denied(data->code))
@@ -160,7 +160,7 @@ gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t
                            "filter DENY country ip=%s code=%s asn=%d block=%d isp=%s", data->ip,
                            data->code[0] ? data->code : "?", (int)data->asn, (int)data->block,
                            data->isp);
-        return authum_bool_false;
+        return gatekeeper_filter_result_deny_country;
     }
     if (data->block > g_gatekeeper_config.filter_block_max)
     {
@@ -168,7 +168,48 @@ gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t
                            "filter DENY block ip=%s code=%s asn=%d block=%d (max=%d) isp=%s",
                            data->ip, data->code[0] ? data->code : "?", (int)data->asn,
                            (int)data->block, (int)g_gatekeeper_config.filter_block_max, data->isp);
-        return authum_bool_false;
+        return gatekeeper_filter_result_deny_block;
     }
-    return authum_bool_true;
+    return gatekeeper_filter_result_allow;
+}
+
+authum_bool_t
+gatekeeper_filter_allow(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
+{
+    return gatekeeper_filter_check(data, auth_id) == gatekeeper_filter_result_allow
+               ? authum_bool_true
+               : authum_bool_false;
+}
+
+void
+gatekeeper_filter_format_reject(gatekeeper_filter_result_t result,
+                                const gatekeeper_iphub_data_t *data, authum_char_t *buf,
+                                authum_usize_t buf_size)
+{
+    const authum_char_t *code;
+
+    if (authum_null_eq(buf) || buf_size == 0u)
+    {
+        return;
+    }
+
+    /* Engine shows: "… because: <reject_reason>" — reason must stand alone. */
+    code = (!authum_null_eq(data) && data->code[0]) ? data->code : "?";
+
+    if (result == gatekeeper_filter_result_deny_country)
+    {
+        snprintf(buf, (size_t)buf_size, "country %s is not allowed", code);
+        return;
+    }
+    if (result == gatekeeper_filter_result_deny_block && !authum_null_eq(data))
+    {
+        snprintf(buf, (size_t)buf_size, "proxy/VPN is not allowed (block %d)", (int)data->block);
+        return;
+    }
+    if (g_gatekeeper_config.filter_kick_reason[0] != '\0')
+    {
+        authum_cstr_copy(buf, buf_size, g_gatekeeper_config.filter_kick_reason);
+        return;
+    }
+    authum_cstr_copy(buf, buf_size, "access denied");
 }
