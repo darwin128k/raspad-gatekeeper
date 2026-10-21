@@ -65,6 +65,51 @@ when you like the ASN history.
 
 Sample keys: [`gatekeeper.cfg`](gatekeeper.cfg).
 
+## SQL schema
+
+Created automatically on module start (`CREATE TABLE IF NOT EXISTS`).  
+Default names — override with `sql_table_ip` / `sql_table_client` / `sql_table_session`.
+
+| Cfg key | Default | Purpose |
+|---------|---------|---------|
+| `sql_table_ip` | `user` | IPHub cache: one row per IP |
+| `sql_table_client` | `client` | SteamID → last known IP row (`logid`) |
+| `sql_table_session` | `session` | steam_guard: SteamID ↔ ASN history |
+
+**`user` (IP cache)**
+
+| Column | Meaning |
+|--------|---------|
+| `id` | PK |
+| `asn` | ASN number |
+| `ip` | IP (unique) |
+| `code` | country code (`RU`, …) |
+| `name` | country name |
+| `isp` | ISP string |
+| `block` | IPHub block score |
+
+**`client`**
+
+| Column | Meaning |
+|--------|---------|
+| `id` | PK |
+| `logid` | FK → `user.id` |
+| `steamid` | Steam / Valve id (unique) |
+
+**`session` (steam_guard)**
+
+| Column | Meaning |
+|--------|---------|
+| `id` | PK |
+| `steamid` | player id |
+| `logid` | FK → `user.id` (last IP row for this ASN) |
+| `asn` | ASN (unique together with steamid) |
+| `code` | country at that ASN |
+| `hits` | how many times seen |
+
+Drivers: `sql_driver=sqlite` (file `sql_path`) or `mysql` (`sql_host` / `user` / `pass` / `db` / `port`).  
+Full `CREATE TABLE` for both engines: [docs/database.md](docs/database.md).
+
 ## Build
 
 Linux i386 (`-m32`), same as other Authum modules.
