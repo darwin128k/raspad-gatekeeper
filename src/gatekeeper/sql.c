@@ -11,7 +11,27 @@
 
 #include <stdio.h>
 
+#if defined(_WIN32)
+#include <windows.h>
+#else
+#include <unistd.h>
+#endif
+
 static authum_sql_t g_db;
+
+static void
+gatekeeper_sql_sleep_ms(authum_i32_t ms)
+{
+    if (ms <= 0)
+    {
+        return;
+    }
+#if defined(_WIN32)
+    Sleep((DWORD)ms);
+#else
+    usleep((useconds_t)ms * 1000u);
+#endif
+}
 
 static authum_bool_t
 gatekeeper_sql_ensure_schema(void)
@@ -122,25 +142,50 @@ gatekeeper_sql_ensure_schema(void)
 authum_bool_t
 gatekeeper_sql_open(void)
 {
+    authum_i32_t retries;
+    authum_i32_t attempt;
+
     authum_sql_init(&g_db);
+
+    retries = g_gatekeeper_config.sql_connect_retries;
+    if (retries < 1)
+    {
+        retries = 1;
+    }
+
+    if (g_gatekeeper_config.sql_connect_delay_ms > 0)
+    {
+        authum_logger_info(&g_gatekeeper_logger, "sql: waiting %d ms before first connect",
+                           (int)g_gatekeeper_config.sql_connect_delay_ms);
+        gatekeeper_sql_sleep_ms(g_gatekeeper_config.sql_connect_delay_ms);
+    }
 
     if (g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql)
     {
-        if (!authum_sql_open_mysql(&g_db, g_gatekeeper_config.sql_host,
-                                   g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_pass,
-                                   g_gatekeeper_config.sql_db,
-                                   (authum_u32_t)g_gatekeeper_config.sql_port))
+        for (attempt = 1; attempt <= retries; ++attempt)
         {
+            if (authum_sql_open_mysql(&g_db, g_gatekeeper_config.sql_host,
+                                      g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_pass,
+                                      g_gatekeeper_config.sql_db,
+                                      (authum_u32_t)g_gatekeeper_config.sql_port))
+            {
+                authum_logger_info(&g_gatekeeper_logger, "sql open (authum mysql): %s@%s:%d/%s",
+                                   g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_host,
+                                   (int)g_gatekeeper_config.sql_port, g_gatekeeper_config.sql_db);
+                return gatekeeper_sql_ensure_schema();
+            }
             authum_logger_error(&g_gatekeeper_logger,
-                                "sql open FAILED (mysql): %s — need libmariadb/libmysqlclient on "
-                                "host, check sql_host/user/pass/db/port",
-                                authum_sql_errmsg(&g_db));
-            return authum_bool_false;
+                                "sql open FAILED (mysql) attempt %d/%d: %s", (int)attempt,
+                                (int)retries, authum_sql_errmsg(&g_db));
+            if (attempt < retries)
+            {
+                gatekeeper_sql_sleep_ms(g_gatekeeper_config.sql_connect_retry_ms);
+            }
         }
-        authum_logger_info(&g_gatekeeper_logger, "sql open (authum mysql): %s@%s:%d/%s",
-                           g_gatekeeper_config.sql_user, g_gatekeeper_config.sql_host,
-                           (int)g_gatekeeper_config.sql_port, g_gatekeeper_config.sql_db);
-        return gatekeeper_sql_ensure_schema();
+        authum_logger_error(&g_gatekeeper_logger,
+                            "sql open FAILED (mysql): need libmariadb/libmysqlclient on host, "
+                            "check sql_host/user/pass/db/port (and that mysqld is up)");
+        return authum_bool_false;
     }
 
     {
@@ -153,16 +198,23 @@ gatekeeper_sql_open(void)
             return authum_bool_false;
         }
 
-        if (!authum_sql_open_sqlite(&g_db, authum_path_as_cstr(&path)))
+        for (attempt = 1; attempt <= retries; ++attempt)
         {
-            authum_logger_error(&g_gatekeeper_logger, "sql open FAILED: %s (%s)",
-                                authum_sql_errmsg(&g_db), authum_path_as_cstr(&path));
-            return authum_bool_false;
+            if (authum_sql_open_sqlite(&g_db, authum_path_as_cstr(&path)))
+            {
+                authum_logger_info(&g_gatekeeper_logger, "sql open (authum sqlite): %s",
+                                   authum_path_as_cstr(&path));
+                return gatekeeper_sql_ensure_schema();
+            }
+            authum_logger_error(&g_gatekeeper_logger, "sql open FAILED attempt %d/%d: %s (%s)",
+                                (int)attempt, (int)retries, authum_sql_errmsg(&g_db),
+                                authum_path_as_cstr(&path));
+            if (attempt < retries)
+            {
+                gatekeeper_sql_sleep_ms(g_gatekeeper_config.sql_connect_retry_ms);
+            }
         }
-
-        authum_logger_info(&g_gatekeeper_logger, "sql open (authum sqlite): %s",
-                           authum_path_as_cstr(&path));
-        return gatekeeper_sql_ensure_schema();
+        return authum_bool_false;
     }
 }
 
