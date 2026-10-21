@@ -158,16 +158,19 @@ gatekeeper_on_client_connect(const authum_char_t *name, authum_ptr payload, auth
     gatekeeper_bind_client_row(slot, ev->auth_id);
     gatekeeper_publish_resolved(ev->index, ev->userid, ev->auth_id, &slot->iphub);
 
-    if (!gatekeeper_filter_allow(&slot->iphub, ev->auth_id))
     {
-        authum_logger_info(&g_gatekeeper_logger,
-                           "reject connect (filter) userid=%d auth=%s ip=%s reason=%s", ev->userid,
-                           ev->auth_id[0] ? ev->auth_id : "?", slot->iphub.ip,
-                           g_gatekeeper_config.filter_kick_reason);
-        ev->allow = authum_bool_false;
-        authum_cstr_copy(ev->reject_reason, sizeof ev->reject_reason,
-                         g_gatekeeper_config.filter_kick_reason);
-        return authum_event_result_handled;
+        gatekeeper_filter_result_t fr = gatekeeper_filter_check(&slot->iphub, ev->auth_id);
+        if (fr != gatekeeper_filter_result_allow)
+        {
+            gatekeeper_filter_format_reject(fr, &slot->iphub, ev->reject_reason,
+                                            sizeof ev->reject_reason);
+            authum_logger_info(&g_gatekeeper_logger,
+                               "reject connect (filter) userid=%d auth=%s ip=%s reason=%s",
+                               ev->userid, ev->auth_id[0] ? ev->auth_id : "?", slot->iphub.ip,
+                               ev->reject_reason);
+            ev->allow = authum_bool_false;
+            return authum_event_result_handled;
+        }
     }
     if (!gatekeeper_steam_guard_allow(ev->auth_id, &slot->iphub))
     {
@@ -205,14 +208,20 @@ gatekeeper_on_client_put_in_server(const authum_char_t *name, authum_ptr payload
     slot->userid = ev->userid;
     gatekeeper_bind_client_row(slot, ev->auth_id);
 
-    if (slot->iphub.id >= 0 && !gatekeeper_filter_allow(&slot->iphub, ev->auth_id))
+    if (slot->iphub.id >= 0)
     {
-        authum_logger_info(&g_gatekeeper_logger,
-                           "kick in-server (filter) userid=%d auth=%s ip=%s reason=%s", ev->userid,
-                           ev->auth_id[0] ? ev->auth_id : "?", slot->iphub.ip,
-                           g_gatekeeper_config.filter_kick_reason);
-        authum_host_kick(&g_gatekeeper_host, ev->userid, g_gatekeeper_config.filter_kick_reason);
-        return authum_event_result_handled;
+        gatekeeper_filter_result_t fr = gatekeeper_filter_check(&slot->iphub, ev->auth_id);
+        if (fr != gatekeeper_filter_result_allow)
+        {
+            authum_char_t reason[128];
+            gatekeeper_filter_format_reject(fr, &slot->iphub, reason, sizeof reason);
+            authum_logger_info(&g_gatekeeper_logger,
+                               "kick in-server (filter) userid=%d auth=%s ip=%s reason=%s",
+                               ev->userid, ev->auth_id[0] ? ev->auth_id : "?", slot->iphub.ip,
+                               reason);
+            authum_host_kick(&g_gatekeeper_host, ev->userid, reason);
+            return authum_event_result_handled;
+        }
     }
     if (slot->iphub.id >= 0 && !gatekeeper_steam_guard_allow(ev->auth_id, &slot->iphub))
     {
