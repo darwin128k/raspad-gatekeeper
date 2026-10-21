@@ -1,39 +1,94 @@
 name: Release
+
 on:
   push:
     tags: ['v*']
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag (v*)'
-        required: false
+        description: 'Release tag (e.g. v0.1.0)'
+        required: true
+        type: string
+      ref:
+        description: 'Git ref to build'
+        required: true
+        default: master
+        type: string
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Build and publish Linux i386 .so
+    name: Build and publish Authum module zip
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
       - name: Install i386 toolchain
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc-multilib g++-multilib ninja-build cmake \
+            gcc-multilib g++-multilib ninja-build cmake zip \
             libc6-dev:i386 libstdc++-12-dev:i386
+
       - name: Build
         run: |
           cmake -S . -B build-linux32 -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-linux32 --target gatekeeper
+          cmake --build build-linux32 --target gatekeeper -j"$(nproc)"
+
+      - name: Pack Authum module layout
+        run: |
+          strip --strip-unneeded build-linux32/modules/gatekeeper/gatekeeper.so
+          rm -rf dist-ci && mkdir -p dist-ci/addons/authum/modules/gatekeeper
+          cp build-linux32/modules/gatekeeper/gatekeeper.so \
+            dist-ci/addons/authum/modules/gatekeeper/gatekeeper.so
+          cp gatekeeper.cfg dist-ci/addons/authum/modules/gatekeeper/gatekeeper.cfg
+          cp whitelist.ini dist-ci/addons/authum/modules/gatekeeper/whitelist.ini
+          printf 'gatekeeper\n' > dist-ci/addons/authum/modules.list.example
+          cat > dist-ci/addons/authum/modules/gatekeeper/INSTALL.txt <<'EOF'
+          Unpack into the game dir so paths match Authum:
+
+            addons/authum/modules/gatekeeper/gatekeeper.so
+            addons/authum/modules/gatekeeper/gatekeeper.cfg
+            addons/authum/modules/gatekeeper/whitelist.ini
+
+          Ensure Authum is installed, then add a line to addons/authum/modules.list:
+            gatekeeper
+
+          Put secrets (iphub_api_key, sql_pass) in gatekeeper.local.cfg next to the module.
+          EOF
+          sed -i 's/^          //' dist-ci/addons/authum/modules/gatekeeper/INSTALL.txt
+          (cd dist-ci && zip -r ../gatekeeper-linux32-authum.zip addons)
+
+      - name: Resolve tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Upload to release
-        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
-          files: build-linux32/modules/gatekeeper/gatekeeper.so
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.tag.outputs.name }}"
+          NOTES=$(mktemp)
+          python3 scripts/release_notes.py --tag "$TAG" \
+            --package "Download **\`gatekeeper-linux32-authum.zip\`** and unpack → \`addons/authum/modules/gatekeeper/\` (needs Authum)." \
+            --highlight "Authum module: IPHub geo/proxy filter + Steam session guard" \
+            --highlight "SQLite by default, or MySQL/MariaDB; sample cfg + whitelist.ini in the zip" \
+            --highlight "Add \`gatekeeper\` to \`addons/authum/modules.list\`" \
+            > "$NOTES"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "$TAG" --notes-file "$NOTES"
+          else
+            gh release edit "$TAG" --notes-file "$NOTES"
+          fi
+          gh release upload "$TAG" gatekeeper-linux32-authum.zip --clobber

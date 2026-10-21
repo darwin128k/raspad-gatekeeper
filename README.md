@@ -49,11 +49,12 @@ Secrets (IPHub key, SQL password) go in `gatekeeper.local.cfg` — never commit 
 
 ## Install
 
-1. Take `gatekeeper.so` from [Releases](https://github.com/darwin128k/raspad-gatekeeper/releases) or build below.
-2. Put under `addons/authum/modules/gatekeeper/`:
-   - `gatekeeper.so`
-   - `gatekeeper.cfg`
-   - optional `gatekeeper.local.cfg`, `whitelist.ini`
+1. Download **`gatekeeper-linux32-authum.zip`** from [Releases](https://github.com/darwin128k/raspad-gatekeeper/releases) (or build below).
+2. Unpack into the game dir so you get:
+   - `addons/authum/modules/gatekeeper/gatekeeper.so`
+   - `addons/authum/modules/gatekeeper/gatekeeper.cfg`
+   - `addons/authum/modules/gatekeeper/whitelist.ini`
+   - optional `gatekeeper.local.cfg` next to them (secrets — not in the zip)
 3. Add `gatekeeper` to `addons/authum/modules.list`.
 4. Pick SQL backend — see **[docs/sql-setup.md](docs/sql-setup.md)**  
    (SQLite out of the box, or MariaDB/MySQL + `libmariadb3:i386`).
