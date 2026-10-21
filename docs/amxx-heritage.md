@@ -1,30 +1,24 @@
-# AMXX Gatekeeper → Authum map (reference)
+# AMXX Gatekeeper → Authum map
 
-Source: Desktop `raspad/Pawn/*.sma`. Core path ported (SQLite + IPHub + filter + client table).
+Source: Desktop `raspad/Pawn/*.sma`. The old stack was several plugins; Authum
+gatekeeper is **one module** that owns the same jobs end-to-end.
 
-| AMXX plugin | Role |
-|-------------|------|
-| `gatekeeper.sma` / early collector | IPHub + SQL table of IP → asn/code/isp/block |
-| `gatekeeper.core.sma` | Core: SQL tuple natives, IPHub request, forward `gatekeeper_client_authorized` / registered |
-| `gatekeeper.filter.sma` | Kick on country deny / IPHub `block` vs cvar; `whitelist.ini` (ASN/IP/SteamID/block flags) |
-| `gatekeeper.clients.sma` | SQL `client` table: steamid ↔ logid (IP row) |
-| `gatesql.sma` | Separate name↔IP↔SteamID binder (ReAPI hooks); sibling idea, not the same plugin tree |
+| AMXX plugin | Role | In Authum gatekeeper |
+|-------------|------|----------------------|
+| `gatekeeper.sma` / early collector | IPHub + SQL IP → asn/code/isp/block | `sql` + `iphub` + resolve |
+| `gatekeeper.core.sma` | SQL / IPHub / forwards | resolve + `gatekeeper.client.resolved` |
+| `gatekeeper.filter.sma` | country / block / whitelist kick | `filter_*` |
+| `gatekeeper.clients.sma` | steamid ↔ logid (IP row) | `sql_table_client` |
+| `gatesql.sma` | name↔IP↔SteamID binder (ReAPI) | sibling idea; not ported as ReAPI |
+| (forum / wishlist) | stolen Steam ticket policy | `steam_guard_*` + `sql_table_session` |
 
-## Data flow (core + filter)
+## Data flow (now)
 
-1. `client_authorized` → lookup IP in SQL; miss → IPHub API.
-2. On IPHub OK → INSERT row → forward to listeners.
-3. Filter listens → whitelist skip → else country list + `block` threshold → `kick #userid`.
+1. `authum.client.connect` → strip IP → SQL lookup → miss → IPHub → INSERT.
+2. Country / block filter (+ `whitelist.ini`).
+3. `steam_guard`: touch or deny ASN/country budget for this SteamID.
+4. Ensure client row; publish `gatekeeper.client.resolved`.
+5. On put-in-server: re-check filter + steam_guard (kick if needed).
 
-## Authum shape (planned)
-
-- One module `gatekeeper` (or core + filter as events later).
-- Subscribe `authum.client.*` / qproto authorized when present.
-- Config: `gatekeeper.cfg` via `authum_cfg_*`.
-- SQL + HTTP IPHub as bricks; kick via `authum_host_kick`.
-- Whitelist file under module dir.
-
-Stolen / shared Steam tickets are **in scope** via `steam_guard_*`: table
-`session` stores steamid↔ASN(+country); over `steam_guard_max_asn` or a new
-country (`steam_guard_strict_country`) is logged, and rejected when
-`steam_guard_enforce=1`. Whitelist still bypasses.
+No separate “core vs filter” plugins, no AMXX natives — policy lives in this
+repo; engines live in Authum bricks.
