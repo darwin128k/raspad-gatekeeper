@@ -40,7 +40,7 @@ gatekeeper_config_t g_gatekeeper_config = {
     .steam_guard_max_asn = 3,
     .steam_guard_kick_reason = "Steam session mismatch",
 
-    .logging_sinks = authum_logger_sink_host | authum_logger_sink_file,
+    .logging_sinks = authum_logger_sink_host,
     .logging_split = authum_logger_file_split_full,
 };
 
