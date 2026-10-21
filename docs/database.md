@@ -12,6 +12,8 @@ Tables are created on start. Names come from cfg (defaults below).
 | `sqlite` | `sql_path` under the module directory (default `gatekeeper.sqlite`) |
 | `mysql` | `sql_host`, `sql_user`, `sql_pass`, `sql_db`, `sql_port` (0 → 3306) |
 
+Install / host packages / localhost lockdown: [sql-setup.md](sql-setup.md).
+
 ## Tables (defaults)
 
 | Cfg | Default | Role |

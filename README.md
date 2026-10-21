@@ -55,10 +55,9 @@ Secrets (IPHub key, SQL password) go in `gatekeeper.local.cfg` — never commit 
    - `gatekeeper.cfg`
    - optional `gatekeeper.local.cfg`, `whitelist.ini`
 3. Add `gatekeeper` to `addons/authum/modules.list`.
-4. Run Authum (ABI 0.3) under Metamod.
-
-MySQL on the game host needs an **i386** client library (`libmariadb3:i386`) —
-the module loads it at runtime.
+4. Pick SQL backend — see **[docs/sql-setup.md](docs/sql-setup.md)**  
+   (SQLite out of the box, or MariaDB/MySQL + `libmariadb3:i386`).
+5. Run Authum (ABI 0.3) under Metamod.
 
 Defaults: steam_guard **learns** (`enforce=0`). Flip `steam_guard_enforce=1`
 when you like the ASN history.
@@ -108,7 +107,8 @@ Default names — override with `sql_table_ip` / `sql_table_client` / `sql_table
 | `hits` | how many times seen |
 
 Drivers: `sql_driver=sqlite` (file `sql_path`) or `mysql` (`sql_host` / `user` / `pass` / `db` / `port`).  
-Full `CREATE TABLE` for both engines: [docs/database.md](docs/database.md).
+How to install either backend: [docs/sql-setup.md](docs/sql-setup.md).  
+Full `CREATE TABLE`: [docs/database.md](docs/database.md).
 
 ## Build
 
@@ -130,7 +130,8 @@ sudo apt-get install -y gcc-multilib g++-multilib cmake ninja-build \
 
 ## Docs
 
-- [docs/database.md](docs/database.md) — tables / drivers
+- [docs/sql-setup.md](docs/sql-setup.md) — install SQLite or MySQL/MariaDB
+- [docs/database.md](docs/database.md) — tables / DDL
 
 ## Related
 
