@@ -1,0 +1,33 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Linux i386 Release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install i386 toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib ninja-build cmake \
+            libc6-dev:i386 libstdc++-12-dev:i386
+      - name: Configure & build
+        run: |
+          cmake -S . -B build-linux32 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-linux32 --target gatekeeper
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatekeeper.so
+          path: build-linux32/modules/gatekeeper/gatekeeper.so
+          if-no-files-found: error

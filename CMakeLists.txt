@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.16)
 project(gatekeeper C)
 
-# Authum client module (ABI 0.3), pure C11.
+# Authum client module (ABI 0.3), pure C11 / Linux i386 (-m32).
 # SQL via Authum (`<authum/sql.h>`); IPHub via plain HTTP sockets.
+# No HLSDK / metamod-p — same shape as qproto 2.x.
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)

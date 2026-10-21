@@ -1,9 +1,12 @@
 /build/
 /build-*/
+/build-linux*/
+/build-sql-smoke/
 *.o
 *.a
 *.so
 *.dll
+*.deb
 .vscode/
 .idea/
 *.user

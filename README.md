@@ -11,11 +11,22 @@ filter, client steamid table, **steam_guard** (steamid↔ASN session antifraud).
 ## Build
 
 SQL via Authum (`<authum/sql.h>`, SQLite inside Authum). IPHub uses plain HTTP sockets.
+32-bit toolchain (`-m32` / i386) required — same as Authum / qproto modules.
 
 ```bash
 git submodule update --init --recursive
-cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build --target gatekeeper
+cmake -S . -B build-linux32 -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-linux32 --target gatekeeper
+# → build-linux32/modules/gatekeeper/gatekeeper.so
+```
+
+Debian/Ubuntu deps (once):
+
+```bash
+sudo dpkg --add-architecture i386
+sudo apt-get update
+sudo apt-get install -y gcc-multilib g++-multilib cmake ninja-build \
+  libc6-dev:i386 libstdc++-12-dev:i386
 ```
 
 Drop under `addons/authum/modules/gatekeeper/`:
