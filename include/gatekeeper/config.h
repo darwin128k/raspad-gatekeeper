@@ -35,8 +35,7 @@ struct gatekeeper_config
 
     authum_bool_t filter_enabled;
     authum_bool_t filter_debug;
-    authum_i32_t
-        filter_block_max; /* kick when iphub block > this (AMXX: < cvar was inverted naming) */
+    authum_i32_t filter_block_max; /* kick when iphub block > this */
     authum_bool_t filter_allow_countries; /* true = list is allow-list */
     authum_char_t filter_countries[512];
     authum_char_t filter_kick_reason[128];
