@@ -1,4 +1,5 @@
 name: CI
+
 on:
   push:
     branches: [master]
@@ -6,28 +7,59 @@ on:
     branches: [master]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
-    name: Linux i386 Release
+    name: Linux i386 Authum package
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
       - name: Install i386 toolchain
         run: |
           sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            gcc-multilib g++-multilib ninja-build cmake \
+            gcc-multilib g++-multilib ninja-build cmake zip \
             libc6-dev:i386 libstdc++-12-dev:i386
+
       - name: Configure & build
         run: |
           cmake -S . -B build-linux32 -G Ninja -DCMAKE_BUILD_TYPE=Release
-          cmake --build build-linux32 --target gatekeeper
+          cmake --build build-linux32 --target gatekeeper -j"$(nproc)"
+
+      - name: Pack Authum module layout
+        run: |
+          strip --strip-unneeded build-linux32/modules/gatekeeper/gatekeeper.so
+          rm -rf dist-ci && mkdir -p dist-ci/addons/authum/modules/gatekeeper
+          cp build-linux32/modules/gatekeeper/gatekeeper.so \
+            dist-ci/addons/authum/modules/gatekeeper/gatekeeper.so
+          cp gatekeeper.cfg dist-ci/addons/authum/modules/gatekeeper/gatekeeper.cfg
+          cp whitelist.ini dist-ci/addons/authum/modules/gatekeeper/whitelist.ini
+          printf 'gatekeeper\n' > dist-ci/addons/authum/modules.list.example
+          cat > dist-ci/addons/authum/modules/gatekeeper/INSTALL.txt <<'EOF'
+          Unpack into the game dir so paths match Authum:
+
+            addons/authum/modules/gatekeeper/gatekeeper.so
+            addons/authum/modules/gatekeeper/gatekeeper.cfg
+            addons/authum/modules/gatekeeper/whitelist.ini
+
+          Ensure Authum is installed, then add a line to addons/authum/modules.list:
+            gatekeeper
+
+          Put secrets (iphub_api_key, sql_pass) in gatekeeper.local.cfg next to the module.
+          EOF
+          sed -i 's/^          //' dist-ci/addons/authum/modules/gatekeeper/INSTALL.txt
+          (cd dist-ci && zip -r ../gatekeeper-linux32-authum.zip addons)
+          ls -la gatekeeper-linux32-authum.zip
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: gatekeeper.so
-          path: build-linux32/modules/gatekeeper/gatekeeper.so
+          name: gatekeeper-linux32-authum
+          path: gatekeeper-linux32-authum.zip
           if-no-files-found: error
