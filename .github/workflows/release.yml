@@ -1,0 +1,39 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag (v*)'
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish Linux i386 .so
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag != '' && inputs.tag || github.ref }}
+      - name: Install i386 toolchain
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            gcc-multilib g++-multilib ninja-build cmake \
+            libc6-dev:i386 libstdc++-12-dev:i386
+      - name: Build
+        run: |
+          cmake -S . -B build-linux32 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-linux32 --target gatekeeper
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && inputs.tag != '')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+          files: build-linux32/modules/gatekeeper/gatekeeper.so
