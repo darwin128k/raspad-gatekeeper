@@ -191,8 +191,7 @@ gatekeeper_sql_open(void)
     {
         authum_path_t path;
 
-        /* An absolute sql_path is taken as is; a name goes to data/gatekeeper/
-         * (a database left in the old module folder is moved there). */
+        /* An absolute sql_path is taken as is; a name goes to data/gatekeeper/. */
         const authum_char_t *name = g_gatekeeper_config.sql_path;
         authum_bool_t absolute = name[0] == '/' || name[0] == '\\' ||
                                  (name[0] != '\0' && name[1] == ':');
