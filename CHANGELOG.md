@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Built on Authum 3.0.0 (module ABI 1.0.0); `lib/authum` tracks branch
+  `3.0.0`. Needs `authum_mm` 3.0.0 — older hosts refuse the module.
+- Logging is Authum's: lines go to `addons/authum/logs/gatekeeper/YYYY-MM-DD.log`,
+  warnings and errors also to `logs/authum/`, levels in
+  `addons/authum/authum.cfg` (`log_level`, `log_console`,
+  `gatekeeper.log_level`). `logging_mode` and `logging_split` are no longer read
+  from `gatekeeper.cfg`.
+- The host is kept with `authum_host_copy`.
+
 ## [0.1.0] - 2026-10-21
 
 ### Added

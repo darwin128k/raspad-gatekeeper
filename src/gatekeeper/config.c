@@ -40,8 +40,6 @@ gatekeeper_config_t g_gatekeeper_config = {
     .steam_guard_max_asn = 3,
     .steam_guard_kick_reason = "Steam session mismatch",
 
-    .logging_sinks = authum_logger_sink_host,
-    .logging_split = authum_logger_file_split_full,
 };
 
 static const authum_cfg_item_t g_gatekeeper_config_items[] = {
@@ -85,7 +83,6 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
     {"steam_guard_max_asn", authum_cfg_kind_i32, &g_gatekeeper_config.steam_guard_max_asn, 0},
     {"steam_guard_kick_reason", authum_cfg_kind_cstr, g_gatekeeper_config.steam_guard_kick_reason,
      sizeof g_gatekeeper_config.steam_guard_kick_reason},
-    {"logging_mode", authum_cfg_kind_u32, &g_gatekeeper_config.logging_sinks, 0},
 };
 
 static void
@@ -94,7 +91,6 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
     authum_path_t path;
     authum_cfg_t cfg;
     authum_char_t driver[32];
-    authum_char_t split[32];
 
     if (!authum_path_join(&path, authum_host_env_module(&g_gatekeeper_host), leaf) ||
         !authum_cfg_open(&cfg, &path))
@@ -116,11 +112,6 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
         {
             g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_sqlite;
         }
-    }
-
-    if (authum_cfg_apply_cstr(&cfg, "logging_split", split, sizeof split))
-    {
-        g_gatekeeper_config.logging_split = authum_logger_file_split_parse(split);
     }
 
     authum_cfg_close(&cfg);
