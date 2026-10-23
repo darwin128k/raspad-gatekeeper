@@ -92,7 +92,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
     authum_cfg_t cfg;
     authum_char_t driver[32];
 
-    /* addons/authum/configs/<leaf> */
+    /* modules/gatekeeper/configs/<leaf> */
     if (!authum_host_config_path(&g_gatekeeper_host, leaf, &path) ||
         !authum_cfg_open(&cfg, &path))
     {
