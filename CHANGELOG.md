@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `gatekeeper.log_level`). `logging_mode` and `logging_split` are no longer read
   from `gatekeeper.cfg`.
 - The host is kept with `authum_host_copy`.
+- Follows Authum's layout: config in `addons/authum/configs/gatekeeper.cfg` (`gatekeeper.local.cfg` too), the
+  whitelist in `configs/gatekeeper/`, the SQLite database in `data/gatekeeper/`
+  (moved there from the old folder on first start; an absolute `sql_path`
+  is used as is);
+  an old copy in `modules/gatekeeper/` is still read, with a warning.
 
 ## [0.1.0] - 2026-10-21
 

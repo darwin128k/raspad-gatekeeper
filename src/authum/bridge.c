@@ -37,8 +37,8 @@ gatekeeper_authum_start(authum_host_t *host)
 
     gatekeeper_config_load();
 
-    authum_logger_info(&g_gatekeeper_logger, "start — module dir: %s",
-                       authum_path_as_cstr(authum_host_env_module(&g_gatekeeper_host)));
+    authum_logger_info(&g_gatekeeper_logger, "start — data dir: %s",
+                       authum_path_as_cstr(authum_host_env_module_data(&g_gatekeeper_host)));
 
     if (!gatekeeper_sql_open())
     {

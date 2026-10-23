@@ -191,8 +191,14 @@ gatekeeper_sql_open(void)
     {
         authum_path_t path;
 
-        if (!authum_path_join(&path, authum_host_env_module(&g_gatekeeper_host),
-                              g_gatekeeper_config.sql_path))
+        /* An absolute sql_path is taken as is; a name goes to data/gatekeeper/
+         * (a database left in the old module folder is moved there). */
+        const authum_char_t *name = g_gatekeeper_config.sql_path;
+        authum_bool_t absolute = name[0] == '/' || name[0] == '\\' ||
+                                 (name[0] != '\0' && name[1] == ':');
+
+        if (!(absolute ? authum_path_set_cstr(&path, name)
+                       : authum_host_data_path(&g_gatekeeper_host, name, &path)))
         {
             authum_logger_error(&g_gatekeeper_logger, "sql: bad path");
             return authum_bool_false;
