@@ -41,7 +41,7 @@ struct gatekeeper_config
     authum_bool_t filter_allow_countries; /* true = list is allow-list */
     authum_char_t filter_countries[512];
     authum_char_t filter_kick_reason[128];
-    authum_char_t filter_whitelist[64]; /* file name under configs/gatekeeper/ */
+    authum_char_t filter_whitelist[64]; /* file name in modules/gatekeeper/configs/ */
 
     /* Stolen / shared Steam ticket: learn ASN(+country) per steamid. */
     authum_bool_t steam_guard_enabled;

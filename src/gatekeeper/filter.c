@@ -75,9 +75,8 @@ gatekeeper_filter_whitelisted(const gatekeeper_iphub_data_t *data, const authum_
     FILE *fp;
     authum_char_t line[256];
 
-    /* addons/authum/configs/gatekeeper/whitelist.ini */
-    if (!authum_host_module_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist,
-                                        &path))
+    /* modules/gatekeeper/configs/whitelist.ini */
+    if (!authum_host_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist, &path))
     {
         return authum_bool_false;
     }
