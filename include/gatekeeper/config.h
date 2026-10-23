@@ -4,8 +4,6 @@
 #include <authum/bool.h>
 #include <authum/byte.h>
 #include <authum/char.h>
-#include <authum/logger/file/split.h>
-#include <authum/logger/sink.h>
 
 enum gatekeeper_sql_driver
 {
@@ -52,8 +50,6 @@ struct gatekeeper_config
     authum_i32_t steam_guard_max_asn; /* distinct ASNs allowed before deny */
     authum_char_t steam_guard_kick_reason[128];
 
-    authum_logger_sink_t logging_sinks;
-    authum_logger_file_split_t logging_split;
 };
 typedef struct gatekeeper_config gatekeeper_config_t;
 

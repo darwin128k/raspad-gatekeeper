@@ -22,9 +22,8 @@ gatekeeper_authum_start(authum_host_t *host)
         return authum_bool_false;
     }
 
-    g_gatekeeper_host = *host;
-    authum_logger_init(&g_gatekeeper_logger, &g_gatekeeper_host, authum_logger_sink_host,
-                       "gatekeeper");
+    authum_host_copy(&g_gatekeeper_host, host);
+    authum_logger_init(&g_gatekeeper_logger, &g_gatekeeper_host);
 
     if (authum_null_eq(authum_host_env(&g_gatekeeper_host)) ||
         authum_null_eq(authum_host_events(&g_gatekeeper_host)) ||
@@ -37,14 +36,6 @@ gatekeeper_authum_start(authum_host_t *host)
     }
 
     gatekeeper_config_load();
-    authum_logger_close(&g_gatekeeper_logger);
-    authum_logger_init(&g_gatekeeper_logger, &g_gatekeeper_host, g_gatekeeper_config.logging_sinks,
-                       "gatekeeper");
-    if ((g_gatekeeper_config.logging_sinks & authum_logger_sink_file) != 0u)
-    {
-        authum_logger_open_module_file(&g_gatekeeper_logger, g_gatekeeper_config.logging_split,
-                                       authum_null);
-    }
 
     authum_logger_info(&g_gatekeeper_logger, "start — module dir: %s",
                        authum_path_as_cstr(authum_host_env_module(&g_gatekeeper_host)));
