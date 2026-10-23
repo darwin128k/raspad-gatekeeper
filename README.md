@@ -125,8 +125,8 @@ cmake --build build-linux32 --target gatekeeper
 ```bash
 sudo dpkg --add-architecture i386
 sudo apt-get update
-sudo apt-get install -y gcc-multilib g++-multilib cmake ninja-build \
-  libc6-dev:i386 libstdc++-12-dev:i386
+sudo apt-get install -y gcc-multilib cmake ninja-build \
+  libc6-dev:i386
 ```
 
 ## Docs
