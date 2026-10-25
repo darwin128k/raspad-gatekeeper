@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- MySQL: after the server dropped an idle connection (`wait_timeout`, 8 h by
+  default) every query failed with "Server has gone away" until HLDS was
+  restarted — no IP cache, no `steam_guard` history. Authum's SQL (lh) now
+  reconnects and sends the query again, so nothing is lost.
+
 ### Changed
 
 - Built on Authum 3.0.0 (module ABI 1.0.0); `lib/authum` tracks branch
