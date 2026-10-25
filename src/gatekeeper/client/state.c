@@ -4,6 +4,7 @@
 #include <string.h>
 
 static gatekeeper_client_slot_t g_slots[gatekeeper_max_players + 1];
+static authum_u32_t g_generations[gatekeeper_max_players + 1];
 
 authum_bool_t
 gatekeeper_client_state_start(void)
@@ -43,6 +44,7 @@ gatekeeper_client_slot_clear(authum_i32_t index)
         return;
     }
     memset(slot, 0, sizeof *slot);
+    slot->generation = ++g_generations[index];
     gatekeeper_iphub_data_clear(&slot->iphub);
     slot->client_row_id = -1;
 }

@@ -1,7 +1,7 @@
 # SQL setup (SQLite / MySQL)
 
 Pick one driver in `gatekeeper.cfg` (or override in `gatekeeper.local.cfg`).  
-Tables are created automatically on module start — you only prepare the engine.
+Tables are created by an asynchronous startup task. Each player check opens a private connection; see [async.md](async.md).
 
 Secrets (`sql_pass`, `iphub_api_key`) → `gatekeeper.local.cfg` next to `gatekeeper.so`.
 

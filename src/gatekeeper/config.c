@@ -69,7 +69,8 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
     {"filter_enabled", authum_cfg_kind_bool, &g_gatekeeper_config.filter_enabled, 0},
     {"filter_debug", authum_cfg_kind_bool, &g_gatekeeper_config.filter_debug, 0},
     {"filter_block_max", authum_cfg_kind_i32, &g_gatekeeper_config.filter_block_max, 0},
-    {"filter_allow_countries", authum_cfg_kind_bool, &g_gatekeeper_config.filter_allow_countries, 0},
+    {"filter_allow_countries", authum_cfg_kind_bool, &g_gatekeeper_config.filter_allow_countries,
+     0},
     {"filter_countries", authum_cfg_kind_cstr, g_gatekeeper_config.filter_countries,
      sizeof g_gatekeeper_config.filter_countries},
     {"filter_kick_reason", authum_cfg_kind_cstr, g_gatekeeper_config.filter_kick_reason,
@@ -93,8 +94,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
     authum_char_t driver[32];
 
     /* modules/gatekeeper/configs/<leaf> */
-    if (!authum_host_config_path(&g_gatekeeper_host, leaf, &path) ||
-        !authum_cfg_open(&cfg, &path))
+    if (!authum_host_config_path(&g_gatekeeper_host, leaf, &path) || !authum_cfg_open(&cfg, &path))
     {
         return;
     }
@@ -116,7 +116,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
     }
 
     authum_cfg_close(&cfg);
-    authum_logger_info(&g_gatekeeper_logger, "applied %s", leaf);
+    authum_logger_info(gatekeeper_log(), "applied %s", leaf);
 }
 
 void
@@ -125,14 +125,17 @@ gatekeeper_config_load(void)
     gatekeeper_config_apply_file("gatekeeper.cfg");
     /* Secrets / overrides — gitignored locally, optional on the server. */
     gatekeeper_config_apply_file("gatekeeper.local.cfg");
-    authum_logger_info(&g_gatekeeper_logger,
-                       "cfg sql_driver=%s filter=%d steam_guard=%d enforce=%d max_asn=%d "
-                       "iphub_api_key=%s",
-                       g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql ? "mysql"
-                                                                                    : "sqlite",
-                       (int)g_gatekeeper_config.filter_enabled,
-                       (int)g_gatekeeper_config.steam_guard_enabled,
-                       (int)g_gatekeeper_config.steam_guard_enforce,
-                       (int)g_gatekeeper_config.steam_guard_max_asn,
-                       g_gatekeeper_config.iphub_api_key[0] ? "set" : "empty");
+    if (g_gatekeeper_config.sql_connect_delay_ms > 0 || g_gatekeeper_config.sql_connect_retries > 1)
+    {
+        authum_logger_warning(gatekeeper_log(), "sql_connect_delay/retries are ignored by async "
+                                                "SQL; each check opens its own connection");
+    }
+    authum_logger_info(
+        gatekeeper_log(),
+        "cfg sql_driver=%s filter=%d steam_guard=%d enforce=%d max_asn=%d "
+        "iphub_api_key=%s",
+        g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql ? "mysql" : "sqlite",
+        (int)g_gatekeeper_config.filter_enabled, (int)g_gatekeeper_config.steam_guard_enabled,
+        (int)g_gatekeeper_config.steam_guard_enforce, (int)g_gatekeeper_config.steam_guard_max_asn,
+        g_gatekeeper_config.iphub_api_key[0] ? "set" : "empty");
 }

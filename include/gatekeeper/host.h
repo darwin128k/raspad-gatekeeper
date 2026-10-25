@@ -6,5 +6,6 @@
 
 extern authum_host_t g_gatekeeper_host;
 extern authum_logger_t g_gatekeeper_logger;
+authum_logger_t *gatekeeper_log(void);
 
 #endif /* GATEKEEPER_HOST_H */
