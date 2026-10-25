@@ -3,13 +3,13 @@
 
 #include <authum/bool.h>
 #include <authum/char.h>
+#include <authum/sql.h>
 
 #include <gatekeeper/iphub/data.h>
 
-authum_bool_t
-gatekeeper_sql_open(void);
-void
-gatekeeper_sql_close(void);
+void gatekeeper_sql_bind(authum_sql_t *db);
+const authum_char_t *gatekeeper_sql_error(void);
+authum_bool_t gatekeeper_sql_ensure_schema(void);
 
 /** Lookup by IP. Fills @p out; returns true when a row exists. */
 authum_bool_t

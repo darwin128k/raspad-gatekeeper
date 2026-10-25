@@ -65,6 +65,10 @@ when you like the ASN history.
 
 Sample keys: [`gatekeeper.cfg`](gatekeeper.cfg).
 
+## Background checks
+
+SQL, IPHub and whitelist lookups run in an Authum worker. Players enter first; a denied player is kicked when the result returns on a game frame. Results for disconnected players or old maps are discarded. Requires the updated Authum task API; see [docs/async.md](docs/async.md).
+
 ## SQL schema
 
 Created automatically on module start (`CREATE TABLE IF NOT EXISTS`).  

@@ -148,7 +148,7 @@ gatekeeper_filter_check(const gatekeeper_iphub_data_t *data, const authum_char_t
     {
         if (g_gatekeeper_config.filter_debug)
         {
-            authum_logger_info(&g_gatekeeper_logger, "filter allow whitelist ip=%s asn=%d",
+            authum_logger_info(gatekeeper_log(), "filter allow whitelist ip=%s asn=%d",
                                data->ip, (int)data->asn);
         }
         return gatekeeper_filter_result_allow;
@@ -156,7 +156,7 @@ gatekeeper_filter_check(const gatekeeper_iphub_data_t *data, const authum_char_t
 
     if (gatekeeper_filter_country_denied(data->code))
     {
-        authum_logger_info(&g_gatekeeper_logger,
+        authum_logger_info(gatekeeper_log(),
                            "filter DENY country ip=%s code=%s asn=%d block=%d isp=%s", data->ip,
                            data->code[0] ? data->code : "?", (int)data->asn, (int)data->block,
                            data->isp);
@@ -164,7 +164,7 @@ gatekeeper_filter_check(const gatekeeper_iphub_data_t *data, const authum_char_t
     }
     if (data->block > g_gatekeeper_config.filter_block_max)
     {
-        authum_logger_info(&g_gatekeeper_logger,
+        authum_logger_info(gatekeeper_log(),
                            "filter DENY block ip=%s code=%s asn=%d block=%d (max=%d) isp=%s",
                            data->ip, data->code[0] ? data->code : "?", (int)data->asn,
                            (int)data->block, (int)g_gatekeeper_config.filter_block_max, data->isp);

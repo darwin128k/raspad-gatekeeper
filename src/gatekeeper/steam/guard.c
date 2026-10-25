@@ -95,7 +95,7 @@ gatekeeper_steam_guard_allow(const authum_char_t *auth_id, const gatekeeper_iphu
 
     if (g_gatekeeper_config.steam_guard_strict_country && asn_count > 0 && !known_code)
     {
-        authum_logger_warning(&g_gatekeeper_logger,
+        authum_logger_warning(gatekeeper_log(),
                               "steam_guard deny steamid=%s ip=%s asn=%d code=%s (new country)",
                               auth_id, data->ip, (int)data->asn, data->code);
         if (!g_gatekeeper_config.steam_guard_enforce)
@@ -110,7 +110,7 @@ gatekeeper_steam_guard_allow(const authum_char_t *auth_id, const gatekeeper_iphu
         gatekeeper_sql_session_touch(auth_id, data);
         if (g_gatekeeper_config.filter_debug || asn_count > 0)
         {
-            authum_logger_info(&g_gatekeeper_logger,
+            authum_logger_info(gatekeeper_log(),
                                "steam_guard learn steamid=%s asn=%d code=%s (%d/%d)", auth_id,
                                (int)data->asn, data->code, (int)asn_count + 1,
                                (int)g_gatekeeper_config.steam_guard_max_asn);
@@ -118,7 +118,7 @@ gatekeeper_steam_guard_allow(const authum_char_t *auth_id, const gatekeeper_iphu
         return authum_bool_true;
     }
 
-    authum_logger_warning(&g_gatekeeper_logger,
+    authum_logger_warning(gatekeeper_log(),
                           "steam_guard deny steamid=%s ip=%s asn=%d code=%s (asn budget %d)",
                           auth_id, data->ip, (int)data->asn, data->code,
                           (int)g_gatekeeper_config.steam_guard_max_asn);
