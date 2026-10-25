@@ -51,7 +51,7 @@ kick(const authum_char_t *command)
 void
 block(void *user)
 {
-    (void)user;
+    authum_unused(user);
     while (!atomic_load(&released))
     {
         pause_ms();
@@ -60,12 +60,12 @@ block(void *user)
 void
 no_work(void *user)
 {
-    (void)user;
+    authum_unused(user);
 }
 void
 mark(void *user)
 {
-    (void)user;
+    authum_unused(user);
     finished = 1;
 }
 void
@@ -84,9 +84,9 @@ drain(void)
 authum_event_result_t
 seen(const authum_char_t *name, void *payload, void *user)
 {
-    (void)name;
-    (void)payload;
-    (void)user;
+    authum_unused(name);
+    authum_unused(payload);
+    authum_unused(user);
     ++resolved;
     return authum_event_result_continue;
 }

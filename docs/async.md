@@ -1,5 +1,9 @@
 # Background checks
 
+Worker log capture, connection identity tracking and SQL error history are
+provided by Authum's [shared services](../lib/authum/docs/shared-services.md).
+Gatekeeper retains the filter policy and its database schema.
+
 Gatekeeper requires Authum's background task API. An older host without it is
 reported as unsupported; there is no synchronous fallback that could stall HLDS.
 Build with the updated `lib/authum`, or set `-DAUTHUM_DIR=/path/to/authum`.
