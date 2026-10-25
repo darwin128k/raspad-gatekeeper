@@ -11,63 +11,16 @@
 
 #include <stdio.h>
 
-#if defined(_WIN32)
-#    include <windows.h>
-#else
-#    include <unistd.h>
-#endif
-
 static _Thread_local authum_sql_t *g_db;
-static _Thread_local authum_char_t g_sql_error[authum_sql_errmsg_max];
-
 void
 gatekeeper_sql_bind(authum_sql_t *db)
 {
     g_db = db;
-    g_sql_error[0] = '\0';
 }
 const authum_char_t *
 gatekeeper_sql_error(void)
 {
-    return g_sql_error;
-}
-void
-gatekeeper_sql_record_error(void)
-{
-    if (g_db && !g_sql_error[0] && authum_sql_errmsg(g_db)[0])
-    {
-        snprintf(g_sql_error, sizeof g_sql_error, "%s", authum_sql_errmsg(g_db));
-    }
-}
-authum_bool_t
-gatekeeper_sql_prepare(authum_sql_t *db, authum_sql_stmt_t *stmt, const authum_char_t *sql)
-{
-    authum_bool_t ok = authum_sql_prepare(db, stmt, sql);
-    if (!ok)
-    {
-        gatekeeper_sql_record_error();
-    }
-    return ok;
-}
-authum_bool_t
-gatekeeper_sql_step_row(authum_sql_stmt_t *stmt)
-{
-    authum_bool_t ok = authum_sql_stmt_step_row(stmt);
-    if (!ok)
-    {
-        gatekeeper_sql_record_error();
-    }
-    return ok;
-}
-authum_bool_t
-gatekeeper_sql_step_done(authum_sql_stmt_t *stmt)
-{
-    authum_bool_t ok = authum_sql_stmt_step_done(stmt);
-    if (!ok)
-    {
-        gatekeeper_sql_record_error();
-    }
-    return ok;
+    return authum_sql_first_error(g_db);
 }
 
 authum_bool_t
@@ -188,13 +141,13 @@ gatekeeper_sql_get_by_ip(const authum_char_t *ip, gatekeeper_iphub_data_t *out)
     gatekeeper_iphub_data_clear(out);
     snprintf(sql, sizeof sql, "SELECT id,asn,ip,code,name,isp,block FROM `%s` WHERE ip=? LIMIT 1",
              g_gatekeeper_config.sql_table_ip);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return authum_bool_false;
     }
 
     authum_sql_stmt_bind_cstr(&stmt, 1, ip);
-    if (gatekeeper_sql_step_row(&stmt))
+    if (authum_sql_stmt_step_row(&stmt))
     {
         out->id = authum_sql_stmt_column_i32(&stmt, 0);
         out->asn = authum_sql_stmt_column_i32(&stmt, 1);
@@ -223,7 +176,7 @@ gatekeeper_sql_insert_ip(gatekeeper_iphub_data_t *row)
 
     snprintf(sql, sizeof sql, "INSERT INTO `%s` (asn,ip,code,name,isp,block) VALUES (?,?,?,?,?,?)",
              g_gatekeeper_config.sql_table_ip);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return authum_bool_false;
     }
@@ -235,7 +188,7 @@ gatekeeper_sql_insert_ip(gatekeeper_iphub_data_t *row)
     authum_sql_stmt_bind_cstr(&stmt, 5, row->isp);
     authum_sql_stmt_bind_i32(&stmt, 6, row->block);
 
-    if (!gatekeeper_sql_step_done(&stmt))
+    if (!authum_sql_stmt_step_done(&stmt))
     {
         authum_logger_error(gatekeeper_log(), "sql insert ip: %s", authum_sql_errmsg(g_db));
         authum_sql_stmt_finalize(&stmt);
@@ -260,12 +213,12 @@ gatekeeper_sql_ensure_client(authum_i32_t log_id, const authum_char_t *steamid)
 
     snprintf(sql, sizeof sql, "SELECT id FROM `%s` WHERE steamid=? LIMIT 1",
              g_gatekeeper_config.sql_table_client);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return -1;
     }
     authum_sql_stmt_bind_cstr(&stmt, 1, steamid);
-    if (gatekeeper_sql_step_row(&stmt))
+    if (authum_sql_stmt_step_row(&stmt))
     {
         id = authum_sql_stmt_column_i32(&stmt, 0);
     }
@@ -277,13 +230,13 @@ gatekeeper_sql_ensure_client(authum_i32_t log_id, const authum_char_t *steamid)
 
     snprintf(sql, sizeof sql, "INSERT INTO `%s` (logid,steamid) VALUES (?,?)",
              g_gatekeeper_config.sql_table_client);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return -1;
     }
     authum_sql_stmt_bind_i32(&stmt, 1, log_id);
     authum_sql_stmt_bind_cstr(&stmt, 2, steamid);
-    if (!gatekeeper_sql_step_done(&stmt))
+    if (!authum_sql_stmt_step_done(&stmt))
     {
         authum_sql_stmt_finalize(&stmt);
         return -1;
@@ -306,13 +259,13 @@ gatekeeper_sql_session_has_asn(const authum_char_t *steamid, authum_i32_t asn)
     }
     snprintf(sql, sizeof sql, "SELECT id FROM `%s` WHERE steamid=? AND asn=? LIMIT 1",
              g_gatekeeper_config.sql_table_session);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return authum_bool_false;
     }
     authum_sql_stmt_bind_cstr(&stmt, 1, steamid);
     authum_sql_stmt_bind_i32(&stmt, 2, asn);
-    if (gatekeeper_sql_step_row(&stmt))
+    if (authum_sql_stmt_step_row(&stmt))
     {
         hit = authum_bool_true;
     }
@@ -334,13 +287,13 @@ gatekeeper_sql_session_has_code(const authum_char_t *steamid, const authum_char_
     }
     snprintf(sql, sizeof sql, "SELECT id FROM `%s` WHERE steamid=? AND code=? LIMIT 1",
              g_gatekeeper_config.sql_table_session);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return authum_bool_false;
     }
     authum_sql_stmt_bind_cstr(&stmt, 1, steamid);
     authum_sql_stmt_bind_cstr(&stmt, 2, code);
-    if (gatekeeper_sql_step_row(&stmt))
+    if (authum_sql_stmt_step_row(&stmt))
     {
         hit = authum_bool_true;
     }
@@ -361,12 +314,12 @@ gatekeeper_sql_session_asn_count(const authum_char_t *steamid)
     }
     snprintf(sql, sizeof sql, "SELECT COUNT(*) FROM `%s` WHERE steamid=?",
              g_gatekeeper_config.sql_table_session);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return 0;
     }
     authum_sql_stmt_bind_cstr(&stmt, 1, steamid);
-    if (gatekeeper_sql_step_row(&stmt))
+    if (authum_sql_stmt_step_row(&stmt))
     {
         n = authum_sql_stmt_column_i32(&stmt, 0);
     }
@@ -391,7 +344,7 @@ gatekeeper_sql_session_touch(const authum_char_t *steamid, const gatekeeper_iphu
         snprintf(sql, sizeof sql,
                  "UPDATE `%s` SET hits=hits+1, logid=?, code=? WHERE steamid=? AND asn=?",
                  g_gatekeeper_config.sql_table_session);
-        if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+        if (!authum_sql_prepare(g_db, &stmt, sql))
         {
             return authum_bool_false;
         }
@@ -399,7 +352,7 @@ gatekeeper_sql_session_touch(const authum_char_t *steamid, const gatekeeper_iphu
         authum_sql_stmt_bind_cstr(&stmt, 2, data->code);
         authum_sql_stmt_bind_cstr(&stmt, 3, steamid);
         authum_sql_stmt_bind_i32(&stmt, 4, data->asn);
-        if (!gatekeeper_sql_step_done(&stmt))
+        if (!authum_sql_stmt_step_done(&stmt))
         {
             authum_sql_stmt_finalize(&stmt);
             return authum_bool_false;
@@ -410,7 +363,7 @@ gatekeeper_sql_session_touch(const authum_char_t *steamid, const gatekeeper_iphu
 
     snprintf(sql, sizeof sql, "INSERT INTO `%s` (steamid,logid,asn,code,hits) VALUES (?,?,?,?,1)",
              g_gatekeeper_config.sql_table_session);
-    if (!gatekeeper_sql_prepare(g_db, &stmt, sql))
+    if (!authum_sql_prepare(g_db, &stmt, sql))
     {
         return authum_bool_false;
     }
@@ -418,7 +371,7 @@ gatekeeper_sql_session_touch(const authum_char_t *steamid, const gatekeeper_iphu
     authum_sql_stmt_bind_i32(&stmt, 2, data->id);
     authum_sql_stmt_bind_i32(&stmt, 3, data->asn);
     authum_sql_stmt_bind_cstr(&stmt, 4, data->code);
-    if (!gatekeeper_sql_step_done(&stmt))
+    if (!authum_sql_stmt_step_done(&stmt))
     {
         authum_logger_error(gatekeeper_log(), "sql session insert: %s", authum_sql_errmsg(g_db));
         authum_sql_stmt_finalize(&stmt);
