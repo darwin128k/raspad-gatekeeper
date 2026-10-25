@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/logo.png" alt="gatekeeper" width="220">
+  <img src="assets/logo.png" alt="gatekeeper" width="260">
 </p>
 
 <h1 align="center">gatekeeper</h1>
