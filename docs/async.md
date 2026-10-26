@@ -29,9 +29,8 @@ Authum's 64-task owner queue. Slow requests can delay checks for other players
 of this module, but not the game loop. Unload waits for the active task before
 freeing module code; DNS timing still follows the OS resolver.
 
-Legacy sql_connect_delay_ms/sql_connect_retries/sql_connect_retry_ms no longer
-apply: connecting is part of each background check. Authum/lh use bounded MySQL
-network timeouts. IPHub uses its configured socket timeout and the OS resolver.
+Authum/LH use bounded MySQL network timeouts. IPHub uses its configured socket
+timeout and the OS resolver.
 
 Tests cover actual worker execution, main-thread delivery, queue bounds,
 cancellation, current-client guards, disconnect/reconnect and map changes.

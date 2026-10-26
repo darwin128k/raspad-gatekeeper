@@ -76,10 +76,6 @@ sql_port = 3306
 sql_user = gatekeeper
 sql_pass = choose_a_strong_password
 sql_db = gatekeeper
-# HLDS and mysqld often boot together — wait then retry
-sql_connect_delay_ms = 3000
-sql_connect_retries = 10
-sql_connect_retry_ms = 1000
 ```
 
 Restart HLDS / reload the module. Check `SHOW TABLES;` in the DB after first connect — `user`, `client`, `session` should appear.

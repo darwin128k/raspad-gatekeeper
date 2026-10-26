@@ -23,10 +23,6 @@ struct gatekeeper_config
     authum_char_t sql_pass[64];
     authum_char_t sql_db[64];
     authum_i32_t sql_port; /* 0 → 3306 */
-    /* Wait for mysqld when HLDS and MariaDB start together: */
-    authum_i32_t sql_connect_delay_ms; /* sleep before first open (0 = none) */
-    authum_i32_t sql_connect_retries; /* total attempts (≥1); default 1 */
-    authum_i32_t sql_connect_retry_ms; /* pause between failed attempts */
     authum_char_t sql_table_ip[32];
     authum_char_t sql_table_client[32];
     authum_char_t sql_table_session[32]; /* steamid↔ASN history */

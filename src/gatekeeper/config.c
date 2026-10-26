@@ -15,9 +15,6 @@ gatekeeper_config_t g_gatekeeper_config = {
     .sql_pass = "",
     .sql_db = "gatekeeper",
     .sql_port = 3306,
-    .sql_connect_delay_ms = 0,
-    .sql_connect_retries = 1,
-    .sql_connect_retry_ms = 1000,
     .sql_table_ip = "user",
     .sql_table_client = "client",
     .sql_table_session = "session",
@@ -53,9 +50,6 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
      sizeof g_gatekeeper_config.sql_pass},
     {"sql_db", authum_cfg_kind_cstr, g_gatekeeper_config.sql_db, sizeof g_gatekeeper_config.sql_db},
     {"sql_port", authum_cfg_kind_i32, &g_gatekeeper_config.sql_port, 0},
-    {"sql_connect_delay_ms", authum_cfg_kind_i32, &g_gatekeeper_config.sql_connect_delay_ms, 0},
-    {"sql_connect_retries", authum_cfg_kind_i32, &g_gatekeeper_config.sql_connect_retries, 0},
-    {"sql_connect_retry_ms", authum_cfg_kind_i32, &g_gatekeeper_config.sql_connect_retry_ms, 0},
     {"sql_table_ip", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_ip,
      sizeof g_gatekeeper_config.sql_table_ip},
     {"sql_table_client", authum_cfg_kind_cstr, g_gatekeeper_config.sql_table_client,
@@ -125,11 +119,6 @@ gatekeeper_config_load(void)
     gatekeeper_config_apply_file("gatekeeper.cfg");
     /* Secrets / overrides — gitignored locally, optional on the server. */
     gatekeeper_config_apply_file("gatekeeper.local.cfg");
-    if (g_gatekeeper_config.sql_connect_delay_ms > 0 || g_gatekeeper_config.sql_connect_retries > 1)
-    {
-        authum_logger_warning(gatekeeper_log(), "sql_connect_delay/retries are ignored by async "
-                                                "SQL; each check opens its own connection");
-    }
     authum_logger_info(
         gatekeeper_log(),
         "cfg sql_driver=%s filter=%d steam_guard=%d enforce=%d max_asn=%d "
