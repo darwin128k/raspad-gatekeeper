@@ -13,6 +13,7 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 authum_host_t g_gatekeeper_host;
 authum_logger_t g_gatekeeper_logger;
@@ -117,14 +118,20 @@ main(void)
     authum_tasks_t tasks;
     authum_events_t events;
     authum_sql_t db;
-    char path[] = "/tmp/gatekeeper-async-XXXXXX";
-    int owner, fd = mkstemp(path), before;
+    char temporary[] = "/tmp/gatekeeper-async-XXXXXX";
+    char path[128], directory[128];
+    struct stat info;
+    int owner, fd = mkstemp(temporary), before;
     CHECK(fd >= 0);
     if (fd < 0)
     {
         return 1;
     }
     close(fd);
+    unlink(temporary);
+    snprintf(directory, sizeof directory, "%s.data", temporary);
+    snprintf(path, sizeof path, "%s.data/gatekeeper.sqlite", temporary);
+    CHECK(stat(directory, &info) != 0);
     memset(&g_gatekeeper_host, 0, sizeof g_gatekeeper_host);
     g_gatekeeper_host.size = sizeof g_gatekeeper_host;
     memset(&engine, 0, sizeof engine);
@@ -145,6 +152,13 @@ main(void)
     g_gatekeeper_config.steam_guard_enforce = authum_bool_true;
     authum_cstr_copy(g_gatekeeper_config.filter_countries,
                      sizeof g_gatekeeper_config.filter_countries, "RU");
+    /* SQLite can start with a missing parent; the writer creates it via LH. */
+    CHECK(gatekeeper_client_state_start());
+    CHECK(gatekeeper_resolve_start());
+    drain();
+    CHECK(stat(path, &info) == 0);
+    gatekeeper_resolve_stop();
+    gatekeeper_client_state_stop();
     authum_sql_init(&db);
     CHECK(authum_sql_open_sqlite(&db, path));
     gatekeeper_sql_bind(&db);
@@ -211,6 +225,7 @@ main(void)
     authum_tasks_host_pump();
     CHECK(kicks == 1);
     unlink(path);
+    rmdir(directory);
     printf("gatekeeper async: %d failures\n", failures);
     return failures ? 1 : 0;
 }

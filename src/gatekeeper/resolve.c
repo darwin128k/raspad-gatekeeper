@@ -192,6 +192,7 @@ gatekeeper_resolve_start(void)
     g_connection.port = (authum_u32_t)g_gatekeeper_config.sql_port;
     if (g_connection.driver == authum_sql_driver_sqlite)
     {
+        authum_path_t parent;
         authum_bool_t absolute = path[0] == '/' || path[0] == '\\' || (path[0] && path[1] == ':');
         if (!(absolute ? authum_path_set_cstr(&g_sql_path, path)
                        : authum_host_data_path(&g_gatekeeper_host, path, &g_sql_path)))
@@ -199,6 +200,12 @@ gatekeeper_resolve_start(void)
             return authum_bool_false;
         }
         g_connection.path = authum_path_as_cstr(&g_sql_path);
+        if (authum_path_parent(&parent, &g_sql_path) && !authum_path_ensure_dir(&parent))
+        {
+            authum_logger_error(gatekeeper_log(), "cannot create SQLite directory: %s",
+                                authum_path_as_cstr(&parent));
+            return authum_bool_false;
+        }
     }
     if (!authum_clients_init(&g_clients, &g_gatekeeper_host, gatekeeper_max_players))
     {
