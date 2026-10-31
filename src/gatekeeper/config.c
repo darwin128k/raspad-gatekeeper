@@ -88,7 +88,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
     authum_char_t driver[32];
 
     /* modules/gatekeeper/configs/<leaf> */
-    if (!authum_host_config_path(&g_gatekeeper_host, leaf, &path) || !authum_cfg_open(&cfg, &path))
+    if (!authum_host_join_config_path(&g_gatekeeper_host, leaf, &path) || !authum_cfg_open(&cfg, &path))
     {
         return;
     }
@@ -99,7 +99,7 @@ gatekeeper_config_apply_file(const authum_char_t *leaf)
 
     if (authum_cfg_apply_cstr(&cfg, "sql_driver", driver, sizeof driver))
     {
-        if (authum_cstr_eq(driver, "mysql", authum_bool_true))
+        if (authum_cstr_is_equal(driver, "mysql", authum_bool_true))
         {
             g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_mysql;
         }

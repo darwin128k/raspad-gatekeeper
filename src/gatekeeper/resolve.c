@@ -11,7 +11,7 @@
 #include <authum/unused.h>
 #include <authum/client/ref.h>
 #include <authum/logger/buffer.h>
-#include <authum/net.h>
+#include <authum/net/address.h>
 #include <authum/event/server.h>
 #include <authum/sql/thread.h>
 #include <stdio.h>
@@ -151,7 +151,7 @@ gatekeeper_check_complete(const authum_sql_thread_result_t *result, authum_ptr u
         ev.userid = job->client.userid;
         authum_cstr_copy(ev.auth_id, sizeof ev.auth_id, job->auth_id);
         ev.iphub = job->data;
-        authum_host_publish(&g_gatekeeper_host, GATEKEEPER_EVENT_CLIENT_RESOLVED, &ev);
+        authum_host_forward(&g_gatekeeper_host, GATEKEEPER_EVENT_CLIENT_RESOLVED, &ev);
     }
     if (job->deny && gatekeeper_check_is_current(job))
     {
@@ -195,15 +195,15 @@ gatekeeper_resolve_start(void)
         authum_path_t parent;
         authum_bool_t absolute = path[0] == '/' || path[0] == '\\' || (path[0] && path[1] == ':');
         if (!(absolute ? authum_path_set_cstr(&g_sql_path, path)
-                       : authum_host_data_path(&g_gatekeeper_host, path, &g_sql_path)))
+                       : authum_host_join_data_path(&g_gatekeeper_host, path, &g_sql_path)))
         {
             return authum_bool_false;
         }
-        g_connection.path = authum_path_as_cstr(&g_sql_path);
-        if (authum_path_parent(&parent, &g_sql_path) && !authum_path_ensure_dir(&parent))
+        g_connection.path = authum_path_get_cstr(&g_sql_path);
+        if (authum_path_assign_parent(&parent, &g_sql_path) && !authum_path_ensure_dir(&parent))
         {
             authum_logger_error(gatekeeper_log(), "cannot create SQLite directory: %s",
-                                authum_path_as_cstr(&parent));
+                                authum_path_get_cstr(&parent));
             return authum_bool_false;
         }
     }
@@ -244,7 +244,7 @@ gatekeeper_resolve_start(void)
 void
 gatekeeper_resolve_stop(void)
 {
-    const authum_events_t *events = authum_host_events(&g_gatekeeper_host);
+    const authum_events_t *events = authum_host_get_events(&g_gatekeeper_host);
     authum_events_unsubscribe(events, AUTHUM_EVENT_CLIENT_CONNECT, gatekeeper_on_client_connect,
                               NULL);
     authum_events_unsubscribe(events, AUTHUM_EVENT_CLIENT_PUT_IN_SERVER,
@@ -262,13 +262,13 @@ gatekeeper_on_client_connect(const authum_char_t *name, authum_ptr payload, auth
     gatekeeper_client_slot_t *slot;
     authum_unused(name);
     authum_unused(user);
-    if (!ev || ev->size < sizeof *ev || !(slot = gatekeeper_client_slot(ev->index)))
+    if (!ev || !(slot = gatekeeper_client_slot(ev->index)))
     {
         return authum_event_result_continue;
     }
     gatekeeper_client_slot_clear(ev->index);
     slot->used = authum_bool_true;
-    (void)authum_net_address_host(ev->address, slot->ip, sizeof slot->ip);
+    (void)authum_net_address_copy_host(ev->address, slot->ip, sizeof slot->ip);
     return authum_event_result_continue;
 }
 authum_event_result_t
@@ -279,8 +279,8 @@ gatekeeper_on_client_put_in_server(const authum_char_t *name, authum_ptr payload
     gatekeeper_check_job_t *job;
     authum_unused(name);
     authum_unused(user);
-    if (!ev || ev->size < sizeof *ev || !(slot = gatekeeper_client_slot(ev->index)) ||
-        !slot->used || slot->pending || !slot->ip[0])
+    if (!ev || !(slot = gatekeeper_client_slot(ev->index)) || !slot->used || slot->pending ||
+        !slot->ip[0])
     {
         return authum_event_result_continue;
     }
@@ -324,7 +324,7 @@ gatekeeper_on_client_disconnect(const authum_char_t *name, authum_ptr payload, a
     const authum_event_client_t *ev = payload;
     authum_unused(name);
     authum_unused(user);
-    if (ev && ev->size >= sizeof *ev)
+    if (ev)
     {
         gatekeeper_client_slot_clear(ev->index);
     }

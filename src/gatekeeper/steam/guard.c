@@ -39,8 +39,8 @@ gatekeeper_steam_guard_applicable(const authum_char_t *auth_id)
     {
         return authum_bool_false;
     }
-    if (authum_cstr_eq(auth_id, "BOT", authum_bool_true) ||
-        authum_cstr_eq(auth_id, "HLTV", authum_bool_true))
+    if (authum_cstr_is_equal(auth_id, "BOT", authum_bool_true) ||
+        authum_cstr_is_equal(auth_id, "HLTV", authum_bool_true))
     {
         return authum_bool_false;
     }

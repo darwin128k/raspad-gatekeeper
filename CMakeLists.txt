@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 project(gatekeeper C)
 
-# Authum client module (ABI 1.0), pure C11 / Linux i386 (-m32).
+# Authum client module (ABI 3.0), pure C11 / Linux i386 (-m32).
 # SQL via Authum (`<authum/sql.h>`); IPHub via plain HTTP sockets.
 # No HLSDK / metamod-p — same shape as qproto 2.x.
 
@@ -13,6 +13,13 @@ set(AUTHUM_DIR "${CMAKE_SOURCE_DIR}/lib/authum" CACHE PATH "Authum API source tr
 if (NOT EXISTS "${AUTHUM_DIR}/client/CMakeLists.txt")
 	message(FATAL_ERROR
 		"lib/authum missing — run: git submodule update --init --recursive lib/authum")
+endif ()
+
+# GCC 16 reports two false positives in lh/sqlite while the LTO archive is
+# linked; the dependency is not ours to patch, so it is built as plain
+# machine code here (lh's own option).
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU" AND CMAKE_C_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+	set(LH_LIBRARY_OPTION_LTO OFF CACHE STRING "Release LTO of the static library" FORCE)
 endif ()
 
 add_subdirectory("${AUTHUM_DIR}/client" "${CMAKE_BINARY_DIR}/authum-client")
@@ -42,7 +49,10 @@ target_include_directories(gatekeeper PRIVATE
 	"${CMAKE_SOURCE_DIR}/include"
 )
 
-target_compile_definitions(gatekeeper PRIVATE linux LINUX)
+if (NOT WIN32)
+	# The module's own POSIX names; MinGW builds the Winsock path instead.
+	target_compile_definitions(gatekeeper PRIVATE linux LINUX)
+endif ()
 
 if (NOT MSVC)
 	target_compile_options(gatekeeper PRIVATE
@@ -59,7 +69,11 @@ if (NOT MSVC)
 	)
 endif ()
 
-target_link_libraries(gatekeeper PRIVATE authum_client pthread dl m)
+target_link_libraries(gatekeeper PRIVATE authum_client)
+if (NOT WIN32)
+	# POSIX libraries: MinGW has no libdl.a.
+	target_link_libraries(gatekeeper PRIVATE pthread dl m)
+endif ()
 
 option(GATEKEEPER_BUILD_TESTS "Build async gatekeeper integration tests" ON)
 if (GATEKEEPER_BUILD_TESTS)
@@ -69,11 +83,16 @@ if (GATEKEEPER_BUILD_TESTS)
         src/gatekeeper/config.c src/gatekeeper/sql.c src/gatekeeper/filter.c
         src/gatekeeper/iphub.c src/gatekeeper/iphub/data.c
         src/gatekeeper/client/state.c src/gatekeeper/steam/guard.c src/gatekeeper/resolve.c
-        "${AUTHUM_DIR}/src/authum/host/tasks.c" "${AUTHUM_DIR}/src/authum/host/events.c")
+        "${AUTHUM_DIR}/src/authum/host/tasks.c" "${AUTHUM_DIR}/src/authum/host/events.c"
+        "${AUTHUM_DIR}/src/authum/host/events/ops.c")
     target_include_directories(gatekeeper_test_async PRIVATE include "${AUTHUM_DIR}/src")
     target_compile_options(gatekeeper_test_async PRIVATE -m32)
     target_link_options(gatekeeper_test_async PRIVATE -m32)
-    target_link_libraries(gatekeeper_test_async PRIVATE authum_client pthread dl m)
+    target_link_libraries(gatekeeper_test_async PRIVATE authum_client)
+    if (NOT WIN32)
+        # POSIX libraries: MinGW has no libdl.a.
+        target_link_libraries(gatekeeper_test_async PRIVATE pthread dl m)
+    endif ()
     add_test(NAME gatekeeper_async COMMAND gatekeeper_test_async)
     set_tests_properties(gatekeeper_async PROPERTIES TIMEOUT 20)
 endif ()
