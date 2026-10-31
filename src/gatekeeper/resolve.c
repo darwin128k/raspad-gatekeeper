@@ -14,9 +14,7 @@
 #include <authum/net/address.h>
 #include <authum/event/server.h>
 #include <authum/sql/thread.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <authum/memory.h>
 
 typedef struct gatekeeper_check_job
 {
@@ -41,7 +39,6 @@ authum_bool_t
 gatekeeper_check_work(authum_sql_t *db, authum_ptr user)
 {
     gatekeeper_check_job_t *job = user;
-    gatekeeper_filter_result_t filter;
     authum_bool_t ok = authum_bool_true;
     authum_logger_buffer_t *previous = authum_logger_buffer_begin(&job->logs);
     gatekeeper_sql_bind(db);
@@ -72,22 +69,25 @@ gatekeeper_check_work(authum_sql_t *db, authum_ptr user)
     {
         goto done;
     }
-    if (job->auth_id[0] && strcmp(job->auth_id, "BOT") && strcmp(job->auth_id, "HLTV") &&
-        job->data.id >= 0)
+    if (job->auth_id[0] && !authum_cstr_is_equal(job->auth_id, "BOT", authum_bool_false) &&
+        !authum_cstr_is_equal(job->auth_id, "HLTV", authum_bool_false) && job->data.id >= 0)
     {
         (void)gatekeeper_sql_ensure_client(job->data.id, job->auth_id);
     }
-    filter = gatekeeper_filter_check(&job->data, job->auth_id);
-    if (filter != gatekeeper_filter_result_allow)
     {
-        job->deny = authum_bool_true;
-        gatekeeper_filter_format_reject(filter, &job->data, job->reason, sizeof job->reason);
-    }
-    else if (!gatekeeper_steam_guard_allow(job->auth_id, &job->data))
-    {
-        job->deny = authum_bool_true;
-        authum_cstr_copy(job->reason, sizeof job->reason,
-                         g_gatekeeper_config.steam_guard_kick_reason);
+        gatekeeper_filter_result_t filter = gatekeeper_filter_check(&job->data, job->auth_id);
+
+        if (filter != gatekeeper_filter_result_allow)
+        {
+            job->deny = authum_bool_true;
+            gatekeeper_filter_format_reject(filter, &job->data, job->reason, sizeof job->reason);
+        }
+        else if (!gatekeeper_steam_guard_allow(job->auth_id, &job->data))
+        {
+            job->deny = authum_bool_true;
+            authum_cstr_copy(job->reason, sizeof job->reason,
+                             g_gatekeeper_config.steam_guard_kick_reason);
+        }
     }
     if (gatekeeper_sql_error()[0])
     {
@@ -95,7 +95,7 @@ gatekeeper_check_work(authum_sql_t *db, authum_ptr user)
         ok = authum_bool_false;
     }
 done:
-    gatekeeper_sql_bind(NULL);
+    gatekeeper_sql_bind(authum_null);
     authum_logger_buffer_end(previous);
     return ok;
 }
@@ -110,7 +110,6 @@ void
 gatekeeper_check_complete(const authum_sql_thread_result_t *result, authum_ptr user)
 {
     gatekeeper_check_job_t *job = user;
-    gatekeeper_client_slot_t *slot;
     authum_logger_buffer_flush(&job->logs);
     if (job->client.index == 0)
     {
@@ -130,8 +129,11 @@ gatekeeper_check_complete(const authum_sql_thread_result_t *result, authum_ptr u
     {
         return;
     }
-    slot = gatekeeper_client_slot(job->client.index);
-    slot->pending = authum_bool_false;
+    {
+        gatekeeper_client_slot_t *slot = gatekeeper_client_slot(job->client.index);
+
+        slot->pending = authum_bool_false;
+    }
     if (!result->success)
     {
         authum_logger_error(gatekeeper_log(), "async SQL failed userid=%d ip=%s: %s; allow",
@@ -145,7 +147,7 @@ gatekeeper_check_complete(const authum_sql_thread_result_t *result, authum_ptr u
     }
     {
         gatekeeper_event_resolved_t ev;
-        memset(&ev, 0, sizeof ev);
+        authum_memory_set(&ev, 0, sizeof ev);
         ev.size = sizeof ev;
         ev.index = job->client.index;
         ev.userid = job->client.userid;
@@ -165,7 +167,7 @@ gatekeeper_check_destroy(authum_ptr user)
 {
     gatekeeper_check_job_t *job = user;
     authum_logger_buffer_destroy(&job->logs);
-    free(job);
+    authum_memory_free(job);
 }
 
 authum_event_result_t
@@ -181,7 +183,7 @@ authum_bool_t
 gatekeeper_resolve_start(void)
 {
     const authum_char_t *path = g_gatekeeper_config.sql_path;
-    memset(&g_connection, 0, sizeof g_connection);
+    authum_memory_set(&g_connection, 0, sizeof g_connection);
     g_connection.driver = g_gatekeeper_config.sql_driver == gatekeeper_sql_driver_mysql
                               ? authum_sql_driver_mysql
                               : authum_sql_driver_sqlite;
@@ -212,20 +214,20 @@ gatekeeper_resolve_start(void)
         return authum_bool_false;
     }
     if (!(authum_host_subscribe(&g_gatekeeper_host, AUTHUM_EVENT_CLIENT_CONNECT,
-                                gatekeeper_on_client_connect, NULL) &&
+                                gatekeeper_on_client_connect, authum_null) &&
           authum_host_subscribe(&g_gatekeeper_host, AUTHUM_EVENT_CLIENT_PUT_IN_SERVER,
-                                gatekeeper_on_client_put_in_server, NULL) &&
+                                gatekeeper_on_client_put_in_server, authum_null) &&
           authum_host_subscribe(&g_gatekeeper_host, AUTHUM_EVENT_CLIENT_DISCONNECT,
-                                gatekeeper_on_client_disconnect, NULL) &&
+                                gatekeeper_on_client_disconnect, authum_null) &&
           authum_host_subscribe(&g_gatekeeper_host, AUTHUM_EVENT_SERVER_DEACTIVATE,
-                                gatekeeper_on_map_end, NULL)))
+                                gatekeeper_on_map_end, authum_null)))
     {
         gatekeeper_resolve_stop();
         return authum_bool_false;
     }
     {
-        gatekeeper_check_job_t *job = calloc(1, sizeof *job);
-        if (!job)
+        gatekeeper_check_job_t *job = authum_memory_alloc_zero(1u, sizeof *job);
+        if (authum_null_eq(job))
         {
             gatekeeper_resolve_stop();
             return authum_bool_false;
@@ -246,12 +248,13 @@ gatekeeper_resolve_stop(void)
 {
     const authum_events_t *events = authum_host_get_events(&g_gatekeeper_host);
     authum_events_unsubscribe(events, AUTHUM_EVENT_CLIENT_CONNECT, gatekeeper_on_client_connect,
-                              NULL);
+                              authum_null);
     authum_events_unsubscribe(events, AUTHUM_EVENT_CLIENT_PUT_IN_SERVER,
-                              gatekeeper_on_client_put_in_server, NULL);
+                              gatekeeper_on_client_put_in_server, authum_null);
     authum_events_unsubscribe(events, AUTHUM_EVENT_CLIENT_DISCONNECT,
-                              gatekeeper_on_client_disconnect, NULL);
-    authum_events_unsubscribe(events, AUTHUM_EVENT_SERVER_DEACTIVATE, gatekeeper_on_map_end, NULL);
+                              gatekeeper_on_client_disconnect, authum_null);
+    authum_events_unsubscribe(events, AUTHUM_EVENT_SERVER_DEACTIVATE, gatekeeper_on_map_end,
+                              authum_null);
     authum_clients_destroy(&g_clients);
 }
 
@@ -284,8 +287,8 @@ gatekeeper_on_client_put_in_server(const authum_char_t *name, authum_ptr payload
     {
         return authum_event_result_continue;
     }
-    job = calloc(1, sizeof *job);
-    if (!job)
+    job = authum_memory_alloc_zero(1u, sizeof *job);
+    if (authum_null_eq(job))
     {
         authum_logger_error(gatekeeper_log(), "async check allocation failed; allow userid=%d",
                             ev->userid);
@@ -293,12 +296,12 @@ gatekeeper_on_client_put_in_server(const authum_char_t *name, authum_ptr payload
     }
     if (!authum_clients_capture(&g_clients, ev->index, &job->client))
     {
-        free(job);
+        authum_memory_free(job);
         return authum_event_result_continue;
     }
     if (!authum_logger_buffer_init(&job->logs, gatekeeper_log(), 24))
     {
-        free(job);
+        authum_memory_free(job);
         authum_logger_error(gatekeeper_log(), "async log buffer allocation failed; allow userid=%d",
                             ev->userid);
         return authum_event_result_continue;

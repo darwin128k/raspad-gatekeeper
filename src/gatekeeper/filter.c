@@ -9,36 +9,34 @@
 #include <authum/null.h>
 #include <authum/path.h>
 
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-
 static authum_bool_t
 gatekeeper_filter_country_denied(const authum_char_t *code)
 {
     authum_char_t upper[8];
-    authum_usize_t i;
 
     if (authum_null_eq(code) || code[0] == '\0')
     {
         return authum_bool_false;
     }
 
-    for (i = 0; i < sizeof upper - 1u && code[i]; ++i)
     {
-        upper[i] = (authum_char_t)toupper((unsigned char)code[i]);
+        authum_usize_t i = 0u;
+
+        while (i < sizeof upper - 1u && code[i] != '\0')
+        {
+            upper[i] = authum_char_to_upper(code[i]);
+            ++i;
+        }
+        upper[i] = '\0';
     }
-    upper[i] = '\0';
 
     if (g_gatekeeper_config.filter_allow_countries)
     {
-        return strstr(g_gatekeeper_config.filter_countries, upper) == authum_null
-                   ? authum_bool_true
-                   : authum_bool_false;
+        return authum_cstr_contains(g_gatekeeper_config.filter_countries, upper) ? authum_bool_false
+                                                                                 : authum_bool_true;
     }
-    return strstr(g_gatekeeper_config.filter_countries, upper) != authum_null ? authum_bool_true
-                                                                              : authum_bool_false;
+    return authum_cstr_contains(g_gatekeeper_config.filter_countries, upper) ? authum_bool_true
+                                                                             : authum_bool_false;
 }
 
 static authum_i32_t
@@ -48,7 +46,7 @@ gatekeeper_filter_read_flags(const authum_char_t *s)
 
     for (; s && *s; ++s)
     {
-        authum_char_t c = (authum_char_t)tolower((unsigned char)*s);
+        authum_char_t c = authum_char_to_lower(*s);
         if (c == 'a')
         {
             flags |= 1 << 0;
@@ -72,31 +70,114 @@ gatekeeper_filter_read_flags(const authum_char_t *s)
 /** The whitelist file is read whole; a bigger one is refused. */
 #define GATEKEEPER_FILTER_WHITELIST_MAX 65536u
 
+/**
+ * One whitespace-separated field of a whitelist line, cut to @p dst_size
+ * characters. The tail of a too long field is read and dropped, the way a
+ * scanf field width drops it.
+ *
+ * @return ::authum_bool_false when the line holds no field here; @p dst is
+ *         left alone then.
+ */
+static authum_bool_t
+gatekeeper_filter_next_field(const authum_char_t **cursor, authum_char_t *dst,
+                             authum_usize_t dst_size)
+{
+    const authum_char_t *p = *cursor;
+    authum_usize_t n = 0u;
+
+    if (dst_size == 0u)
+    {
+        return authum_bool_false;
+    }
+    while (authum_char_is_space(*p))
+    {
+        ++p;
+    }
+    if (*p == '\0')
+    {
+        return authum_bool_false;
+    }
+    while (*p != '\0' && !authum_char_is_space(*p))
+    {
+        if (n + 1u < dst_size)
+        {
+            dst[n] = *p;
+            ++n;
+        }
+        ++p;
+    }
+    dst[n] = '\0';
+    *cursor = p;
+    return authum_bool_true;
+}
+
+/**
+ * The five fields of a whitelist line — `flags asn ip auth_id block`.
+ * A field the line does not hold keeps the text it had.
+ *
+ * @return How many fields the line holds.
+ */
+static authum_usize_t
+gatekeeper_filter_scan_fields(const authum_char_t *line, authum_char_t *fields[5],
+                              const authum_usize_t sizes[5])
+{
+    const authum_char_t *cursor = line;
+    authum_usize_t count = 0u;
+
+    for (authum_usize_t i = 0u; i < 5u; ++i)
+    {
+        if (!gatekeeper_filter_next_field(&cursor, fields[i], sizes[i]))
+        {
+            break;
+        }
+        ++count;
+    }
+    return count;
+}
+
+/** The number in @p text; 0 when the text holds no number. */
+static authum_i32_t
+gatekeeper_filter_number(const authum_char_t *text)
+{
+    authum_i32_t value = 0;
+
+    if (!authum_cstr_parse_i32(text, &value))
+    {
+        return 0;
+    }
+    return value;
+}
+
 /** One whitelist line: `flags asn ip auth_id block`; true when it matches. */
 static authum_bool_t
 gatekeeper_filter_whitelist_line(const authum_char_t *line, const gatekeeper_iphub_data_t *data,
                                  const authum_char_t *auth_id)
 {
     authum_char_t flags_s[16], asn_s[16], ip_s[48], auth_s[64], block_s[8];
-    authum_i32_t flags;
-    int n;
 
     if (line[0] == ';' || line[0] == '#' || line[0] == '\n' || line[0] == '\r')
     {
         return authum_bool_false;
     }
+
     flags_s[0] = asn_s[0] = ip_s[0] = auth_s[0] = block_s[0] = '\0';
-    n = sscanf(line, "%15s %15s %47s %63s %7s", flags_s, asn_s, ip_s, auth_s, block_s);
-    if (n < 1 || flags_s[0] == '\0')
+
+    authum_char_t *fields[5] = {flags_s, asn_s, ip_s, auth_s, block_s};
+    const authum_usize_t sizes[5] = {sizeof flags_s, sizeof asn_s, sizeof ip_s, sizeof auth_s,
+                                     sizeof block_s};
+
+    authum_usize_t n = gatekeeper_filter_scan_fields(line, fields, sizes);
+    if (n < 1u || flags_s[0] == '\0')
     {
         return authum_bool_false;
     }
-    flags = gatekeeper_filter_read_flags(flags_s);
+
+    authum_i32_t flags = gatekeeper_filter_read_flags(flags_s);
     if (flags == 0)
     {
         return authum_bool_false;
     }
-    if ((flags & (1 << 0)) && atoi(asn_s) != data->asn)
+    if ((flags & (1 << 0)) && gatekeeper_filter_number(asn_s) != data->asn)
     {
         return authum_bool_false;
     }
@@ -109,7 +190,7 @@ gatekeeper_filter_whitelist_line(const authum_char_t *line, const gatekeeper_iph
     {
         return authum_bool_false;
     }
-    if ((flags & (1 << 1)) && atoi(block_s) != data->block)
+    if ((flags & (1 << 1)) && gatekeeper_filter_number(block_s) != data->block)
     {
         return authum_bool_false;
     }
@@ -119,50 +200,57 @@ gatekeeper_filter_whitelist_line(const authum_char_t *line, const gatekeeper_iph
 authum_bool_t
 gatekeeper_filter_whitelisted(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
 {
-    authum_path_t path;
-    authum_file_t file;
     authum_char_t text[GATEKEEPER_FILTER_WHITELIST_MAX];
-    authum_usize_t total = 0u;
-    authum_char_t *line;
 
     /* modules/gatekeeper/configs/whitelist.ini */
-    if (!authum_host_join_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist, &path))
     {
-        return authum_bool_false;
-    }
+        authum_path_t path;
+        authum_file_t file;
+        authum_usize_t total = 0u;
 
-    authum_file_init(&file);
-    if (!authum_file_open(&file, &path, authum_file_mode_read))
-    {
+        if (!authum_host_join_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist,
+                                          &path))
+        {
+            return authum_bool_false;
+        }
+
+        authum_file_init(&file);
+        if (!authum_file_open(&file, &path, authum_file_mode_read))
+        {
+            authum_file_close(&file);
+            return authum_bool_false;
+        }
+        if (!authum_file_read_all(&file, text, sizeof text, &total) || total >= sizeof text)
+        {
+            authum_file_close(&file);
+            authum_logger_error(gatekeeper_log(), "whitelist too large: %s",
+                                g_gatekeeper_config.filter_whitelist);
+            return authum_bool_false;
+        }
         authum_file_close(&file);
-        return authum_bool_false;
     }
-    if (!authum_file_read_all(&file, text, sizeof text, &total) || total >= sizeof text)
-    {
-        authum_file_close(&file);
-        authum_logger_error(gatekeeper_log(), "whitelist too large: %s",
-                            g_gatekeeper_config.filter_whitelist);
-        return authum_bool_false;
-    }
-    authum_file_close(&file);
 
-    for (line = text; *line != '\0';)
     {
-        authum_char_t *newline = strchr(line, '\n');
+        authum_char_t *line;
 
-        if (newline != authum_null)
+        for (line = text; *line != '\0';)
         {
-            *newline = '\0';
+            authum_char_t *newline = (authum_char_t *)authum_cstr_find_char(line, '\n');
+
+            if (newline != authum_null)
+            {
+                *newline = '\0';
+            }
+            if (gatekeeper_filter_whitelist_line(line, data, auth_id))
+            {
+                return authum_bool_true;
+            }
+            if (newline == authum_null)
+            {
+                break;
+            }
+            line = newline + 1;
         }
-        if (gatekeeper_filter_whitelist_line(line, data, auth_id))
-        {
-            return authum_bool_true;
-        }
-        if (newline == authum_null)
-        {
-            break;
-        }
-        line = newline + 1;
     }
     return authum_bool_false;
 }
@@ -233,12 +321,12 @@ gatekeeper_filter_format_reject(gatekeeper_filter_result_t result,
 
     if (result == gatekeeper_filter_result_deny_country)
     {
-        snprintf(buf, (size_t)buf_size, "country %s is not allowed", code);
+        authum_cstr_format(buf, buf_size, "country %s is not allowed", code);
         return;
     }
     if (result == gatekeeper_filter_result_deny_block && !authum_null_eq(data))
     {
-        snprintf(buf, (size_t)buf_size, "proxy/VPN is not allowed (block %d)", (int)data->block);
+        authum_cstr_format(buf, buf_size, "proxy/VPN is not allowed (block %d)", (int)data->block);
         return;
     }
     if (g_gatekeeper_config.filter_kick_reason[0] != '\0')

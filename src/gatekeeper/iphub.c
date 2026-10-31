@@ -5,11 +5,8 @@
 
 #include <authum/cstr.h>
 #include <authum/json.h>
+#include <authum/memory.h>
 #include <authum/null.h>
-
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 
 #ifdef _WIN32
 #    include <winsock2.h>
@@ -59,12 +56,7 @@ static authum_bool_t
 gatekeeper_iphub_fetch(const authum_char_t *ip, authum_char_t *buf, authum_usize_t buf_size)
 {
     struct addrinfo hints, *addresses = authum_null;
-    struct sockaddr_in addr;
     gatekeeper_socket_t fd = GATEKEEPER_SOCKET_INVALID;
-    authum_char_t req[512];
-    authum_usize_t total = 0u;
-    int n;
-    struct timeval tv;
     authum_bool_t ok = authum_bool_false;
 
     if (!gatekeeper_iphub_net_start())
@@ -73,7 +65,7 @@ gatekeeper_iphub_fetch(const authum_char_t *ip, authum_char_t *buf, authum_usize
         return authum_bool_false;
     }
 
-    memset(&hints, 0, sizeof hints);
+    authum_memory_set(&hints, 0, sizeof hints);
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     if (getaddrinfo("v2.api.iphub.info", "80", &hints, &addresses) != 0 || !addresses)
@@ -89,45 +81,62 @@ gatekeeper_iphub_fetch(const authum_char_t *ip, authum_char_t *buf, authum_usize
         goto done;
     }
 
-    tv.tv_sec = (time_t)(g_gatekeeper_config.iphub_timeout_ms / 1000);
-    tv.tv_usec = (long)(g_gatekeeper_config.iphub_timeout_ms % 1000) * 1000L;
-    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, (int)sizeof tv);
-    setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, (int)sizeof tv);
-
-    memcpy(&addr, addresses->ai_addr, sizeof addr);
-    freeaddrinfo(addresses);
-
-    if (connect(fd, (struct sockaddr *)&addr, (int)sizeof addr) != 0)
     {
-        authum_logger_error(gatekeeper_log(), "iphub: connect failed");
-        goto done;
+        struct timeval tv;
+
+        tv.tv_sec = g_gatekeeper_config.iphub_timeout_ms / 1000;
+        tv.tv_usec = (g_gatekeeper_config.iphub_timeout_ms % 1000) * 1000L;
+        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, (int)sizeof tv);
+        setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, (const char *)&tv, (int)sizeof tv);
     }
 
-    snprintf(req, sizeof req,
-             "GET /ip/%s HTTP/1.0\r\n"
-             "Host: v2.api.iphub.info\r\n"
-             "X-Key: %s\r\n"
-             "Connection: close\r\n"
-             "\r\n",
-             ip, g_gatekeeper_config.iphub_api_key);
-
-    if (send(fd, req, (int)strlen(req), 0) < 0)
     {
-        goto done;
-    }
+        struct sockaddr_in addr;
 
-    while (total + 1u < buf_size)
-    {
-        n = recv(fd, buf + total, (int)(buf_size - total - 1u), 0);
-        if (n <= 0)
+        authum_memory_copy(&addr, addresses->ai_addr, sizeof addr);
+        freeaddrinfo(addresses);
+
+        if (connect(fd, (struct sockaddr *)&addr, (int)sizeof addr) != 0)
         {
-            break;
+            authum_logger_error(gatekeeper_log(), "iphub: connect failed");
+            goto done;
         }
-        total += (authum_usize_t)n;
     }
-    buf[total] = '\0';
 
-    if (strstr(buf, "HTTP/1.0 200") == authum_null && strstr(buf, "HTTP/1.1 200") == authum_null)
+    {
+        authum_char_t req[512];
+
+        authum_cstr_format(req, sizeof req,
+                           "GET /ip/%s HTTP/1.0\r\n"
+                           "Host: v2.api.iphub.info\r\n"
+                           "X-Key: %s\r\n"
+                           "Connection: close\r\n"
+                           "\r\n",
+                           ip, g_gatekeeper_config.iphub_api_key);
+
+        if (send(fd, req, (int)authum_cstr_len(req), 0) < 0)
+        {
+            goto done;
+        }
+    }
+
+    {
+        authum_usize_t total = 0u;
+
+        while (total + 1u < buf_size)
+        {
+            authum_i32_t n = recv(fd, buf + total, (int)(buf_size - total - 1u), 0);
+
+            if (n <= 0)
+            {
+                break;
+            }
+            total += (authum_usize_t)n;
+        }
+        buf[total] = '\0';
+    }
+
+    if (!authum_cstr_contains(buf, "HTTP/1.0 200") && !authum_cstr_contains(buf, "HTTP/1.1 200"))
     {
         authum_logger_error(gatekeeper_log(), "iphub: bad HTTP status (ip=%s)", ip);
         goto done;
@@ -162,7 +171,7 @@ gatekeeper_iphub_lookup(const authum_char_t *ip, gatekeeper_iphub_data_t *out)
         return authum_bool_false;
     }
 
-    body = strstr(buf, "\r\n\r\n");
+    body = authum_cstr_find(buf, "\r\n\r\n");
     if (authum_null_eq(body))
     {
         authum_logger_error(gatekeeper_log(), "iphub: no body");

@@ -1,16 +1,14 @@
 #include <gatekeeper/client/state.h>
 
+#include <authum/memory.h>
 #include <authum/null.h>
-#include <string.h>
 
 static gatekeeper_client_slot_t g_slots[gatekeeper_max_players + 1];
 
 authum_bool_t
 gatekeeper_client_state_start(void)
 {
-    authum_i32_t i;
-
-    for (i = 0; i <= gatekeeper_max_players; ++i)
+    for (authum_i32_t i = 0; i <= gatekeeper_max_players; ++i)
     {
         gatekeeper_client_slot_clear(i);
     }
@@ -42,5 +40,5 @@ gatekeeper_client_slot_clear(authum_i32_t index)
     {
         return;
     }
-    memset(slot, 0, sizeof *slot);
+    authum_memory_set(slot, 0, sizeof *slot);
 }

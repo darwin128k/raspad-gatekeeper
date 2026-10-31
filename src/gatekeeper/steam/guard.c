@@ -8,15 +8,10 @@
 #include <authum/cstr.h>
 #include <authum/null.h>
 
-#include <ctype.h>
-#include <string.h>
-
 static authum_bool_t
 gatekeeper_steam_guard_prefix(const authum_char_t *auth_id, const authum_char_t *prefix)
 {
-    authum_usize_t i;
-
-    for (i = 0; prefix[i] != '\0'; ++i)
+    for (authum_usize_t i = 0u; prefix[i] != '\0'; ++i)
     {
         authum_char_t a = auth_id[i];
         authum_char_t b = prefix[i];
@@ -24,7 +19,7 @@ gatekeeper_steam_guard_prefix(const authum_char_t *auth_id, const authum_char_t 
         {
             return authum_bool_false;
         }
-        if (tolower((unsigned char)a) != tolower((unsigned char)b))
+        if (authum_char_to_lower(a) != authum_char_to_lower(b))
         {
             return authum_bool_false;
         }
@@ -44,7 +39,7 @@ gatekeeper_steam_guard_applicable(const authum_char_t *auth_id)
     {
         return authum_bool_false;
     }
-    if (strstr(auth_id, "PENDING") != authum_null || strstr(auth_id, "LAN") != authum_null)
+    if (authum_cstr_contains(auth_id, "PENDING") || authum_cstr_contains(auth_id, "LAN"))
     {
         return authum_bool_false;
     }
@@ -59,10 +54,6 @@ gatekeeper_steam_guard_applicable(const authum_char_t *auth_id)
 authum_bool_t
 gatekeeper_steam_guard_allow(const authum_char_t *auth_id, const gatekeeper_iphub_data_t *data)
 {
-    authum_bool_t known_asn;
-    authum_bool_t known_code;
-    authum_i32_t asn_count;
-
     if (!g_gatekeeper_config.steam_guard_enabled)
     {
         return authum_bool_true;
@@ -83,39 +74,40 @@ gatekeeper_steam_guard_allow(const authum_char_t *auth_id, const gatekeeper_iphu
         return authum_bool_true;
     }
 
-    known_asn = gatekeeper_sql_session_has_asn(auth_id, data->asn);
-    if (known_asn)
+    if (gatekeeper_sql_session_has_asn(auth_id, data->asn))
     {
         gatekeeper_sql_session_touch(auth_id, data);
         return authum_bool_true;
     }
 
-    asn_count = gatekeeper_sql_session_asn_count(auth_id);
-    known_code = gatekeeper_sql_session_has_code(auth_id, data->code);
-
-    if (g_gatekeeper_config.steam_guard_strict_country && asn_count > 0 && !known_code)
     {
-        authum_logger_warning(gatekeeper_log(),
-                              "steam_guard deny steamid=%s ip=%s asn=%d code=%s (new country)",
-                              auth_id, data->ip, (int)data->asn, data->code);
-        if (!g_gatekeeper_config.steam_guard_enforce)
+        authum_i32_t asn_count = gatekeeper_sql_session_asn_count(auth_id);
+        authum_bool_t known_code = gatekeeper_sql_session_has_code(auth_id, data->code);
+
+        if (g_gatekeeper_config.steam_guard_strict_country && asn_count > 0 && !known_code)
         {
+            authum_logger_warning(gatekeeper_log(),
+                                  "steam_guard deny steamid=%s ip=%s asn=%d code=%s (new country)",
+                                  auth_id, data->ip, (int)data->asn, data->code);
+            if (!g_gatekeeper_config.steam_guard_enforce)
+            {
+                return authum_bool_true;
+            }
+            return authum_bool_false;
+        }
+
+        if (asn_count < g_gatekeeper_config.steam_guard_max_asn)
+        {
+            gatekeeper_sql_session_touch(auth_id, data);
+            if (g_gatekeeper_config.filter_debug || asn_count > 0)
+            {
+                authum_logger_info(gatekeeper_log(),
+                                   "steam_guard learn steamid=%s asn=%d code=%s (%d/%d)", auth_id,
+                                   (int)data->asn, data->code, (int)asn_count + 1,
+                                   (int)g_gatekeeper_config.steam_guard_max_asn);
+            }
             return authum_bool_true;
         }
-        return authum_bool_false;
-    }
-
-    if (asn_count < g_gatekeeper_config.steam_guard_max_asn)
-    {
-        gatekeeper_sql_session_touch(auth_id, data);
-        if (g_gatekeeper_config.filter_debug || asn_count > 0)
-        {
-            authum_logger_info(gatekeeper_log(),
-                               "steam_guard learn steamid=%s asn=%d code=%s (%d/%d)", auth_id,
-                               (int)data->asn, data->code, (int)asn_count + 1,
-                               (int)g_gatekeeper_config.steam_guard_max_asn);
-        }
-        return authum_bool_true;
     }
 
     authum_logger_warning(gatekeeper_log(),
