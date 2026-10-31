@@ -141,24 +141,37 @@ main(void)
     authum_tasks_t tasks;
     authum_events_t events;
     authum_sql_t db;
-    char cwd[256], temporary[320], path[384], directory[352];
+    char base[256], temporary[320], path[384], directory[352];
     struct stat info;
     int owner, fd, before;
     size_t i;
+#if defined(_WIN32)
+    const char *fallback = ".";
+#else
+    const char *fallback = "/tmp";
+#endif
+    const char *temp = getenv("TMPDIR");
 
-    if (!getcwd(cwd, (int)sizeof cwd))
+    /* The data goes to the system temp dir: a build on a mounted Windows drive
+     * (WSL's /mnt/h) cannot hold an SQLite database. */
+    if (!temp)
     {
-        printf("gatekeeper async: no working directory\n");
-        return 1;
+        temp = getenv("TEMP");
     }
-    for (i = 0; cwd[i] != '\0'; ++i)
+    if (!temp)
     {
-        if (cwd[i] == '\\')
-        {
-            cwd[i] = '/';
-        }
+        temp = getenv("TMP");
     }
-    snprintf(temporary, sizeof temporary, "%s/gatekeeper-async-XXXXXX", cwd);
+    if (!temp)
+    {
+        temp = fallback;
+    }
+    for (i = 0; temp[i] != '\0' && i + 1u < sizeof base; ++i)
+    {
+        base[i] = temp[i] == '\\' ? '/' : temp[i];
+    }
+    base[i] = '\0';
+    snprintf(temporary, sizeof temporary, "%s/gatekeeper-async-XXXXXX", base);
     fd = mkstemp(temporary);
     CHECK(fd >= 0);
     if (fd < 0)
@@ -190,10 +203,21 @@ main(void)
     g_gatekeeper_config.steam_guard_enforce = authum_bool_true;
     authum_cstr_copy(g_gatekeeper_config.filter_countries,
                      sizeof g_gatekeeper_config.filter_countries, "RU");
-    /* SQLite can start with a missing parent; the writer creates it via LH. */
+    /* SQLite can start with a missing parent; the writer creates it via LH.
+     * The writer works asynchronously, so wait for the file instead of
+     * assuming it is already there. */
     CHECK(gatekeeper_client_state_start());
     CHECK(gatekeeper_resolve_start());
     drain();
+    for (i = 0; i < 500u; ++i)
+    {
+        if (stat(path, &info) == 0)
+        {
+            break;
+        }
+        authum_tasks_host_pump();
+        usleep(10000);
+    }
     CHECK(stat(path, &info) == 0);
     gatekeeper_resolve_stop();
     gatekeeper_client_state_stop();
