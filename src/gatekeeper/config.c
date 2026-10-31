@@ -83,29 +83,36 @@ static const authum_cfg_item_t g_gatekeeper_config_items[] = {
 static void
 gatekeeper_config_apply_file(const authum_char_t *leaf)
 {
-    authum_path_t path;
     authum_cfg_t cfg;
-    authum_char_t driver[32];
 
     /* modules/gatekeeper/configs/<leaf> */
-    if (!authum_host_join_config_path(&g_gatekeeper_host, leaf, &path) || !authum_cfg_open(&cfg, &path))
     {
-        return;
+        authum_path_t path;
+
+        if (!authum_host_join_config_path(&g_gatekeeper_host, leaf, &path) ||
+            !authum_cfg_open(&cfg, &path))
+        {
+            return;
+        }
     }
 
     authum_cfg_apply_items(
         &cfg, g_gatekeeper_config_items,
         (authum_usize_t)(sizeof g_gatekeeper_config_items / sizeof g_gatekeeper_config_items[0]));
 
-    if (authum_cfg_apply_cstr(&cfg, "sql_driver", driver, sizeof driver))
     {
-        if (authum_cstr_is_equal(driver, "mysql", authum_bool_true))
+        authum_char_t driver[32];
+
+        if (authum_cfg_apply_cstr(&cfg, "sql_driver", driver, sizeof driver))
         {
-            g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_mysql;
-        }
-        else
-        {
-            g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_sqlite;
+            if (authum_cstr_is_equal(driver, "mysql", authum_bool_true))
+            {
+                g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_mysql;
+            }
+            else
+            {
+                g_gatekeeper_config.sql_driver = gatekeeper_sql_driver_sqlite;
+            }
         }
     }
 
