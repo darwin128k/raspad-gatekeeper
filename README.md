@@ -58,7 +58,7 @@ Secrets (IPHub key, SQL password) go in `gatekeeper.local.cfg` — never commit 
 3. Add `gatekeeper` to `addons/authum/modules.list`.
 4. Pick SQL backend — see **[docs/sql-setup.md](docs/sql-setup.md)**  
    (SQLite out of the box, or MariaDB/MySQL + `libmariadb3:i386`).
-5. Run Authum 4.0.0 (module ABI 1.0.0) — in Authum 4.0.0 Metamod is gone and
+5. Run Authum 4.0.0 (module ABI 3.0.0) — in Authum 4.0.0 Metamod is gone and
    Authum itself is the host image (`authum.so`), loaded where the game
    library used to be.
 

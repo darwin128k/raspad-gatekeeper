@@ -4,6 +4,7 @@
 #include <gatekeeper/host.h>
 
 #include <authum/cstr.h>
+#include <authum/file.h>
 #include <authum/host.h>
 #include <authum/null.h>
 #include <authum/path.h>
@@ -68,67 +69,101 @@ gatekeeper_filter_read_flags(const authum_char_t *s)
     return flags;
 }
 
+/** The whitelist file is read whole; a bigger one is refused. */
+#define GATEKEEPER_FILTER_WHITELIST_MAX 65536u
+
+/** One whitelist line: `flags asn ip auth_id block`; true when it matches. */
+static authum_bool_t
+gatekeeper_filter_whitelist_line(const authum_char_t *line, const gatekeeper_iphub_data_t *data,
+                                 const authum_char_t *auth_id)
+{
+    authum_char_t flags_s[16], asn_s[16], ip_s[48], auth_s[64], block_s[8];
+    authum_i32_t flags;
+    int n;
+
+    if (line[0] == ';' || line[0] == '#' || line[0] == '\n' || line[0] == '\r')
+    {
+        return authum_bool_false;
+    }
+    flags_s[0] = asn_s[0] = ip_s[0] = auth_s[0] = block_s[0] = '\0';
+    n = sscanf(line, "%15s %15s %47s %63s %7s", flags_s, asn_s, ip_s, auth_s, block_s);
+    if (n < 1 || flags_s[0] == '\0')
+    {
+        return authum_bool_false;
+    }
+    flags = gatekeeper_filter_read_flags(flags_s);
+    if (flags == 0)
+    {
+        return authum_bool_false;
+    }
+    if ((flags & (1 << 0)) && atoi(asn_s) != data->asn)
+    {
+        return authum_bool_false;
+    }
+    if ((flags & (1 << 2)) && !authum_cstr_is_equal(ip_s, data->ip, authum_bool_false))
+    {
+        return authum_bool_false;
+    }
+    if ((flags & (1 << 3)) &&
+        (authum_null_eq(auth_id) || !authum_cstr_is_equal(auth_s, auth_id, authum_bool_true)))
+    {
+        return authum_bool_false;
+    }
+    if ((flags & (1 << 1)) && atoi(block_s) != data->block)
+    {
+        return authum_bool_false;
+    }
+    return authum_bool_true;
+}
+
 authum_bool_t
 gatekeeper_filter_whitelisted(const gatekeeper_iphub_data_t *data, const authum_char_t *auth_id)
 {
     authum_path_t path;
-    FILE *fp;
-    authum_char_t line[256];
+    authum_file_t file;
+    authum_char_t text[GATEKEEPER_FILTER_WHITELIST_MAX];
+    authum_usize_t total = 0u;
+    authum_char_t *line;
 
     /* modules/gatekeeper/configs/whitelist.ini */
-    if (!authum_host_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist, &path))
+    if (!authum_host_join_config_path(&g_gatekeeper_host, g_gatekeeper_config.filter_whitelist, &path))
     {
         return authum_bool_false;
     }
 
-    fp = fopen(authum_path_as_cstr(&path), "r");
-    if (authum_null_eq(fp))
+    authum_file_init(&file);
+    if (!authum_file_open(&file, &path, authum_file_mode_read))
     {
+        authum_file_close(&file);
         return authum_bool_false;
     }
-
-    while (fgets(line, (int)sizeof line, fp))
+    if (!authum_file_read_all(&file, text, sizeof text, &total) || total >= sizeof text)
     {
-        authum_char_t flags_s[16], asn_s[16], ip_s[48], auth_s[64], block_s[8];
-        authum_i32_t flags;
-        int n;
-
-        if (line[0] == ';' || line[0] == '#' || line[0] == '\n' || line[0] == '\r')
-        {
-            continue;
-        }
-        flags_s[0] = asn_s[0] = ip_s[0] = auth_s[0] = block_s[0] = '\0';
-        n = sscanf(line, "%15s %15s %47s %63s %7s", flags_s, asn_s, ip_s, auth_s, block_s);
-        if (n < 1 || flags_s[0] == '\0')
-        {
-            continue;
-        }
-        flags = gatekeeper_filter_read_flags(flags_s);
-        if (flags == 0)
-        {
-            continue;
-        }
-        if ((flags & (1 << 0)) && atoi(asn_s) != data->asn)
-        {
-            continue;
-        }
-        if ((flags & (1 << 2)) && !authum_cstr_eq(ip_s, data->ip, authum_bool_false))
-        {
-            continue;
-        }
-        if ((flags & (1 << 3)) &&
-            (authum_null_eq(auth_id) || !authum_cstr_eq(auth_s, auth_id, authum_bool_true)))
-        {
-            continue;
-        }
-        if ((flags & (1 << 1)) && atoi(block_s) != data->block)
-        {
-            continue;
-        }
-        fclose(fp);
-        return authum_bool_true;
+        authum_file_close(&file);
+        authum_logger_error(gatekeeper_log(), "whitelist too large: %s",
+                            g_gatekeeper_config.filter_whitelist);
+        return authum_bool_false;
     }
-    fclose(fp);
+    authum_file_close(&file);
+
+    for (line = text; *line != '\0';)
+    {
+        authum_char_t *newline = strchr(line, '\n');
+
+        if (newline != authum_null)
+        {
+            *newline = '\0';
+        }
+        if (gatekeeper_filter_whitelist_line(line, data, auth_id))
+        {
+            return authum_bool_true;
+        }
+        if (newline == authum_null)
+        {
+            break;
+        }
+        line = newline + 1;
+    }
     return authum_bool_false;
 }
 

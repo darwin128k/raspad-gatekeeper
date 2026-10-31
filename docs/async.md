@@ -8,14 +8,16 @@ Gatekeeper requires Authum's background task API. An older host without it is
 reported as unsupported; there is no synchronous fallback that could stall HLDS.
 Build with the updated `lib/authum`, or set `-DAUTHUM_DIR=/path/to/authum`.
 
-ClientConnect only records the IP and a new slot generation, then allows the
-connection. ClientPutInServer queues a check with the current SteamID/userid.
+ClientConnect only records the IP and a new slot generation, then lets the chain
+continue — the module never refuses a client itself. ClientPutInServer queues a
+check with the current SteamID/userid.
 SQL, whitelist-file reads and IPHub run in the module's FIFO worker. Each check
 opens its own connection, ensures the schema, resolves the IP, updates the client
 and ASN history, and calculates a decision. SQLite and MySQL share this path.
 
-On a later game frame, buffered logs are written, the resolved event is
-published and a denied player is kicked. Thus a denied player can briefly enter
+On a later game frame, buffered logs are written, the module's own
+`gatekeeper.client.resolved` event is forwarded and a denied player is kicked.
+Thus a denied player can briefly enter
 the game before being removed. Before using a result (and again before kicking),
 gatekeeper checks slot generation and engine userid. Disconnect/reconnect and
 map deactivation invalidate previous results. Worker code never kicks players or

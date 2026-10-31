@@ -25,10 +25,10 @@ gatekeeper_authum_start(authum_host_t *host)
     authum_host_copy(&g_gatekeeper_host, host);
     authum_logger_init(gatekeeper_log(), &g_gatekeeper_host);
 
-    if (authum_null_eq(authum_host_env(&g_gatekeeper_host)) ||
-        authum_null_eq(authum_host_events(&g_gatekeeper_host)) ||
-        authum_null_eq(authum_host_commands(&g_gatekeeper_host)) ||
-        authum_null_eq(authum_host_sandbox(&g_gatekeeper_host)))
+    if (authum_null_eq(authum_host_get_env(&g_gatekeeper_host)) ||
+        authum_null_eq(authum_host_get_events(&g_gatekeeper_host)) ||
+        authum_null_eq(authum_host_get_commands(&g_gatekeeper_host)) ||
+        authum_null_eq(authum_host_get_sandbox(&g_gatekeeper_host)))
     {
         authum_logger_error(gatekeeper_log(),
                             "host facade incomplete (needs env/events/commands/sandbox)");
@@ -38,9 +38,9 @@ gatekeeper_authum_start(authum_host_t *host)
     gatekeeper_config_load();
 
     authum_logger_info(gatekeeper_log(), "start — data dir: %s",
-                       authum_path_as_cstr(authum_host_env_module_data(&g_gatekeeper_host)));
+                       authum_path_get_cstr(authum_host_get_module_data_path(&g_gatekeeper_host)));
 
-    if (!authum_host_tasks(&g_gatekeeper_host))
+    if (!authum_host_get_tasks(&g_gatekeeper_host))
     {
         authum_logger_error(gatekeeper_log(), "host has no background task API; update Authum");
         return authum_bool_false;

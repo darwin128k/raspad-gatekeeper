@@ -16,10 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Built on Authum 4.0.0 (module ABI 1.0.0); `lib/authum` tracks branch
+- Built on Authum 4.0.0 (module ABI 3.0.0); `lib/authum` tracks branch
   `4.0.0`. Metamod is gone in Authum 4.0.0 — the host image is `authum.so`,
   loaded where the game library used to be, and there is no `authum_mm`
   plugin any more.
+- The module announces its own event `gatekeeper.client.resolved` with
+  `authum_host_forward`; host events (`authum.client.*`) belong to the host and
+  are no longer published from the module.
+- The whitelist file is read through Authum's file facade (`<authum/file.h>`)
+  instead of `fopen`.
 - Logging is Authum's: lines go to `addons/authum/logs/gatekeeper/YYYY-MM-DD.log`,
   warnings and errors also to `logs/authum/`, levels in
   `addons/authum/authum.cfg` (`log_level`, `log_console`,

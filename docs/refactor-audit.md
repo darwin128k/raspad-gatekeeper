@@ -8,7 +8,7 @@ The reusable mechanisms now live in Authum's
 | Worker log capture / game-thread delivery | `authum_logger_buffer_*` | any module doing background work |
 | Stable player-connection identity | `authum_clients_*`, `authum_client_ref_is_current` | bans, stats, profiles, inventory, asynchronous authorizations |
 | First SQL error retained across a batch | `authum_sql_first_error`, `authum_sql_clear_errors` | every SQL module, including threaded queries |
-| Host extraction from an address | `authum_net_address_host` | network filters, monitoring, query/ticket modules |
+| Host extraction from an address | `authum_net_address_copy_host` | network filters, monitoring, query/ticket modules |
 
 Gatekeeper no longer implements its own worker logger, generation array or
 prepare/step wrappers. Per-slot copies of userid, auth id, SQL client id and the
