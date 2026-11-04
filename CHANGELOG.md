@@ -16,8 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `lib/authum` moves to Authum `e267fd0` (lh 0.4.0, `41ff0f80`): the host's
-  background tasks (and so the asynchronous SQL) run on `lh/exec` executors with a bounded mailbox; the
+- `lib/authum` moves to Authum `ceae2f1` (lh 0.4.0, `6332462c`): the host's
+  background tasks run on `lh/exec` executors with a bounded mailbox, and the
+  asynchronous SQL keeps one connection per task thread instead of opening one
+  per check (closed, with `mysql_thread_end`, when the module unloads). The
   module itself is unchanged.
 - Built on Authum 4.0.0 (module ABI 3.0.0); `lib/authum` tracks branch
   `4.0.0`. Metamod is gone in Authum 4.0.0 — the host image is `authum.so`,
