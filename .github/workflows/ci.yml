@@ -63,3 +63,57 @@ jobs:
           name: gatekeeper-linux32-authum
           path: gatekeeper-linux32-authum.zip
           if-no-files-found: error
+
+  windows:
+    name: Windows i686 (MSYS2 MinGW)
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install MSYS2 MINGW32
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          update: true
+          install: >-
+            mingw-w64-i686-gcc
+            mingw-w64-i686-cmake
+            mingw-w64-i686-ninja
+            zip
+
+      - name: Build
+        run: |
+          cmake -S . -B build-win32 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-win32 --target gatekeeper -j"$(nproc)"
+
+      - name: Pack Authum module layout
+        run: |
+          rm -rf dist-win && mkdir -p dist-win/addons/authum/modules/gatekeeper
+          cp build-win32/modules/gatekeeper/gatekeeper.dll dist-win/addons/authum/modules/gatekeeper/gatekeeper.dll
+          cp gatekeeper.cfg dist-win/addons/authum/modules/gatekeeper/gatekeeper.cfg
+          cp whitelist.ini dist-win/addons/authum/modules/gatekeeper/whitelist.ini
+          printf 'gatekeeper\n' > dist-win/addons/authum/modules.list.example
+          cat > dist-win/addons/authum/modules/gatekeeper/INSTALL.txt <<'EOF'
+          Unpack into the game dir so paths match Authum:
+
+            addons\authum\modules\gatekeeper\gatekeeper.dll
+            addons\authum\modules\gatekeeper\gatekeeper.cfg
+            addons\authum\modules\gatekeeper\whitelist.ini
+
+          Ensure Authum is installed, then add a line to addons\authum\modules.list:
+            gatekeeper
+          EOF
+          sed -i 's/^          //' dist-win/addons/authum/modules/gatekeeper/INSTALL.txt
+          (cd dist-win && zip -r ../gatekeeper-win32-authum.zip addons)
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gatekeeper-win32-authum
+          path: gatekeeper-win32-authum.zip
+          if-no-files-found: error

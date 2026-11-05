@@ -81,7 +81,7 @@ jobs:
           TAG="${{ steps.tag.outputs.name }}"
           NOTES=$(mktemp)
           python3 scripts/release_notes.py --tag "$TAG" \
-            --package "Download **\`gatekeeper-linux32-authum.zip\`** and unpack → \`addons/authum/modules/gatekeeper/\` (needs Authum)." \
+            --package "Download **\`gatekeeper-linux32-authum.zip\`** (Linux) or **\`gatekeeper-win32-authum.zip\`** (Windows) and unpack → \`addons/authum/modules/gatekeeper/\` (needs Authum)." \
             --highlight "Authum module: IPHub geo/proxy filter + Steam session guard" \
             --highlight "SQLite by default, or MySQL/MariaDB; sample cfg + whitelist.ini in the zip" \
             --highlight "Add \`gatekeeper\` to \`addons/authum/modules.list\`" \
@@ -92,3 +92,61 @@ jobs:
             gh release edit "$TAG" --notes-file "$NOTES"
           fi
           gh release upload "$TAG" gatekeeper-linux32-authum.zip --clobber
+
+  win32:
+    name: Build and publish the Windows zip
+    # The Linux job creates the release; this one adds its zip to it.
+    needs: release
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - name: Install MSYS2 MINGW32
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW32
+          update: true
+          install: >-
+            mingw-w64-i686-gcc
+            mingw-w64-i686-cmake
+            mingw-w64-i686-ninja
+            zip
+
+      - name: Build
+        run: |
+          cmake -S . -B build-win32 -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-win32 --target gatekeeper -j"$(nproc)"
+
+      - name: Pack Authum module layout
+        run: |
+          rm -rf dist-win && mkdir -p dist-win/addons/authum/modules/gatekeeper
+          cp build-win32/modules/gatekeeper/gatekeeper.dll dist-win/addons/authum/modules/gatekeeper/gatekeeper.dll
+          cp gatekeeper.cfg dist-win/addons/authum/modules/gatekeeper/gatekeeper.cfg
+          cp whitelist.ini dist-win/addons/authum/modules/gatekeeper/whitelist.ini
+          printf 'gatekeeper\n' > dist-win/addons/authum/modules.list.example
+          cat > dist-win/addons/authum/modules/gatekeeper/INSTALL.txt <<'EOF'
+          Unpack into the game dir so paths match Authum:
+
+            addons\authum\modules\gatekeeper\gatekeeper.dll
+            addons\authum\modules\gatekeeper\gatekeeper.cfg
+            addons\authum\modules\gatekeeper\whitelist.ini
+
+          Ensure Authum is installed, then add a line to addons\authum\modules.list:
+            gatekeeper
+          EOF
+          sed -i 's/^          //' dist-win/addons/authum/modules/gatekeeper/INSTALL.txt
+          (cd dist-win && zip -r ../gatekeeper-win32-authum.zip addons)
+
+      - name: Upload to the release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") { "${{ inputs.tag }}" } else { "${{ github.ref_name }}" }
+          gh release upload $tag gatekeeper-win32-authum.zip --clobber
